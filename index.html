@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Study Smart – Academic Success Platform</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script src="https://checkout.flutterwave.com/v3.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{font-family:'Inter',sans-serif;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+.fade-enter{animation:fadeUp .35s ease;}
+.toast-enter{animation:slideIn .3s ease;}
+.card-hover{transition:all .3s ease;}
+.card-hover:hover{transform:translateY(-4px);box-shadow:0 20px 40px rgba(0,0,0,.1);}
+.flip-card{perspective:1000px;}
+.flip-inner{transition:transform .6s;transform-style:preserve-3d;position:relative;width:100%;height:288px;}
+.flip-inner.flipped{transform:rotateY(180deg);}
+.flip-front,.flip-back{position:absolute;inset:0;backface-visibility:hidden;border-radius:1.5rem;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;}
+.flip-back{transform:rotateY(180deg);}
+.progress-bar{transition:width 1s ease;}
+.timer-pulse{animation:pulse 2s infinite;}
+.blob1,.blob2,.blob3{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0;}
+.blob1{left:-12rem;top:-10rem;width:32rem;height:32rem;}
+.blob2{right:-8rem;top:4rem;width:28rem;height:28rem;}
+.blob3{bottom:-10rem;left:30%;width:26rem;height:26rem;}
+.dot-pattern{background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.15) 1px,transparent 0);background-size:40px 40px;}
+.modal-overlay{backdrop-filter:blur(8px);}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-thumb{background:#6366f1;border-radius:99px;}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(80px)}to{opacity:1;transform:translateX(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+/* ═══════════════════════════════════════════
+   ✅ YOUR CONFIGURATION — EDIT THIS SECTION
+   ═══════════════════════════════════════════ */
+const CONFIG = {
+  /* ── YOUR DETAILS ── */
+  OWNER_NAME:              "Study Smart",
+  OWNER_EMAIL:             "admin@studysmart.com",
+  OWNER_PHONE:             "0508793262",
+  OWNER_TELECEL:           "0508793262",
+  FLUTTERWAVE_MERCHANT_ID: "100778781",
+  SUPPORT_WHATSAPP:        "0508793262",
+
+  /* ── PAYSTACK KEY ──────────────────────────────────────────
+     Get from: https://dashboard.paystack.com → Settings → API
+     Replace the value below with your real key              */
+  PAYSTACK_PUBLIC_KEY: "pk_test_REPLACE_WITH_YOUR_PAYSTACK_KEY",
+
+  /* ── FLUTTERWAVE KEY ───────────────────────────────────────
+     Get from: https://dashboard.flutterwave.com → Settings → API
+     Replace the value below with your real key              */
+  FLUTTERWAVE_PUBLIC_KEY: "FLWPUBK_TEST-REPLACE_WITH_YOUR_FLUTTERWAVE_KEY",
+
+  /* ── PLANS ── */
+  PLANS: [
+    {
+      id:"monthly", label:"Monthly Premium", price:35, period:"/month",
+      badge:"", description:"Full premium access for 1 month",
+      features:["Unlimited premium resources","Unlimited quizzes & flashcards",
+                "Download all materials","Priority support","Ad-free experience"]
+    },
+    {
+      id:"semester", label:"Semester Premium", price:150, period:"/semester",
+      badge:"SAVE GH₵60", description:"Best value — full semester coverage",
+      features:["Everything in Monthly","6 months full access",
+                "Exclusive study groups","Early access to new content",
+                "Certificate of completion","Lifetime premium badge"]
+    },
+    {
+      id:"annual", label:"Annual Premium", price:250, period:"/year",
+      badge:"BEST DEAL", description:"Ultimate value — whole academic year",
+      features:["Everything in Semester","12 months full access",
+                "1-on-1 tutoring session","Exclusive Discord community",
+                "Priority content requests","All future features free"]
+    }
+  ],
+
+  CURRENCY:        "GHS",
+  CURRENCY_SYMBOL: "GH₵",
+  APP_NAME:        "Study Smart",
+  APP_URL:         "https://yourdomain.com",
+};
+
+/* ═══════════════════════════════════════════
+   PAYMENT HANDLER
+   ═══════════════════════════════════════════ */
+const PaymentHandler = {
+  payWithPaystack({plan,userEmail,userName,userPhone,onSuccess,onClose}){
+    if(typeof PaystackPop==="undefined"){
+      alert("Paystack failed to load. Check your internet and try again.");return;
+    }
+    const ref=`SS-PS-${plan.id.toUpperCase()}-${Date.now()}`;
+    const handler=PaystackPop.setup({
+      key:CONFIG.PAYSTACK_PUBLIC_KEY,
+      email:userEmail,
+      amount:plan.price*100,
+      currency:CONFIG.CURRENCY,
+      ref,
+      firstname:userName.split(" ")[0]||userName,
+      lastname:userName.split(" ").slice(1).join(" ")||"",
+      phone:userPhone,
+      label:`${CONFIG.APP_NAME} — ${plan.label}`,
+      channels:["mobile_money","card","bank","ussd"],
+      metadata:{custom_fields:[
+        {display_name:"Plan",variable_name:"plan",value:plan.label},
+        {display_name:"Student",variable_name:"student",value:userName},
+        {display_name:"Merchant",variable_name:"merchant",value:CONFIG.FLUTTERWAVE_MERCHANT_ID},
+      ]},
+      callback(response){
+        if(response.status==="success"||response.status==="completed"){
+          onSuccess({reference:response.reference,gateway:"Paystack",
+            plan:plan.label,amount:plan.price,status:"success"});
+        }
+      },
+      onClose(){if(onClose)onClose();}
+    });
+    handler.openIframe();
+  },
+
+  payWithFlutterwave({plan,userEmail,userName,userPhone,onSuccess,onClose}){
+    if(typeof FlutterwaveCheckout==="undefined"){
+      alert("Flutterwave failed to load. Check your internet and try again.");return;
+    }
+    const txRef=`SS-FLW-${plan.id.toUpperCase()}-${Date.now()}`;
+    FlutterwaveCheckout({
+      public_key:CONFIG.FLUTTERWAVE_PUBLIC_KEY,
+      tx_ref:txRef,
+      amount:plan.price,
+      currency:CONFIG.CURRENCY,
+      payment_options:"mobilemoneyghanaairteltigo,mobilemoneyghana,mobilemoneyghanavoda,card,ussd,banktransfer",
+      customer:{email:userEmail,phone_number:userPhone,name:userName},
+      customizations:{
+        title:CONFIG.APP_NAME,
+        description:`${plan.label} — ${CONFIG.CURRENCY_SYMBOL}${plan.price}${plan.period}`,
+        logo:"",
+      },
+      meta:{
+        merchant_id:CONFIG.FLUTTERWAVE_MERCHANT_ID,
+        owner_telecel:CONFIG.OWNER_TELECEL,
+        plan_id:plan.id,plan_name:plan.label,
+      },
+      callback(response){
+        if(response.status==="successful"||response.status==="completed"){
+          onSuccess({reference:response.tx_ref,transactionId:response.transaction_id,
+            gateway:"Flutterwave",merchantId:CONFIG.FLUTTERWAVE_MERCHANT_ID,
+            plan:plan.label,amount:plan.price,status:"success"});
+        }
+      },
+      onclose(){if(onClose)onClose();}
+    });
+  },
+
+  getTelecelInstructions(plan){
+    const ref=`SS-${plan.id.toUpperCase()}-${Date.now().toString().slice(-6)}`;
+    return{
+      number:CONFIG.OWNER_TELECEL,
+      network:"Telecel Cash (AirtelTigo)",
+      amount:`${CONFIG.CURRENCY_SYMBOL}${plan.price}`,
+      reference:ref,
+      instruction:`Dial *500# → Send Money → Enter ${CONFIG.OWNER_TELECEL} → Amount: ${plan.price} → Ref: ${ref}`,
+      whatsapp:`https://wa.me/233${CONFIG.OWNER_TELECEL.slice(1)}?text=Hi! I just paid GH₵${plan.price} for ${plan.label}. My transaction ref is: ${ref}`,
+    };
+  }
+};
+</script>
+
+<script type="text/babel">
+const {useState,useEffect,useRef,useMemo,useCallback}=React;
+
+/* ════════════════════ DATA ════════════════════ */
+const ADMINS=["admin@studysmart.com"];
+const initRes=[
+  {id:1,title:"CHM 101 – Organic Chemistry Slides",course:"Chemistry",level:"100",category:"Slides",week:"Week 1–6",description:"Comprehensive slides covering alkanes, alkenes, alkynes and functional groups.",access:"Free",pages:84,downloads:3421,format:"PDF",tags:["organic","chemistry"],rating:4.8,dateAdded:"2024-01-10"},
+  {id:2,title:"MTH 201 – Calculus Past Questions (2018–2023)",course:"Mathematics",level:"200",category:"Past Questions",week:"2018–2023",description:"Five years of past exam questions with fully worked solutions.",access:"Premium",pages:120,downloads:5670,format:"PDF",tags:["calculus","exam"],rating:4.9,dateAdded:"2024-01-15"},
+  {id:3,title:"PHY 101 – Mechanics Lecture Notes",course:"Physics",level:"100",category:"Lecture Notes",week:"Week 1–8",description:"Detailed notes on Newton's laws, kinematics, work, energy and momentum.",access:"Free",pages:56,downloads:2891,format:"PDF",tags:["physics","mechanics"],rating:4.6,dateAdded:"2024-01-20"},
+  {id:4,title:"BIO 202 – Cell Biology Textbook",course:"Biology",level:"200",category:"Textbooks",week:"Semester",description:"Full semester textbook covering cell structure, organelles, mitosis and meiosis.",access:"Premium",pages:340,downloads:1823,format:"PDF",tags:["biology","cells"],rating:4.7,dateAdded:"2024-02-01"},
+  {id:5,title:"CSC 301 – Data Structures Slides",course:"Computer Science",level:"300",category:"Slides",week:"Week 1–12",description:"Arrays, linked lists, stacks, queues, trees and graphs with complexity analysis.",access:"Premium",pages:200,downloads:4102,format:"PDF",tags:["CS","algorithms"],rating:4.9,dateAdded:"2024-02-10"},
+  {id:6,title:"CHM 201 – Lab Report: Titration",course:"Chemistry",level:"200",category:"Lab Reports",week:"Week 4",description:"Sample titration lab report with full data analysis and discussion.",access:"Free",pages:18,downloads:1567,format:"DOCX",tags:["chemistry","lab"],rating:4.4,dateAdded:"2024-02-15"},
+];
+const quizData=[
+  {id:1,title:"Organic Chemistry Basics",course:"CHM 101",difficulty:"Beginner",duration:10,participants:3240,
+   questions:[
+     {id:1,question:"General formula for alkanes?",options:["CnH2n","CnH2n+2","CnH2n-2","CnHn"],correctIndex:1,explanation:"Alkanes are saturated hydrocarbons: CnH2n+2."},
+     {id:2,question:"Example of an alkene?",options:["Methane","Ethane","Ethene","Propane"],correctIndex:2,explanation:"Ethene (C2H4) is the simplest alkene."},
+     {id:3,question:"Bond in alkynes?",options:["Single","Double","Triple","Ionic"],correctIndex:2,explanation:"Alkynes contain a C≡C triple bond."},
+     {id:4,question:"Alcohol functional group?",options:["-COOH","-CHO","-OH","-NH2"],correctIndex:2,explanation:"Alcohols contain the -OH hydroxyl group."},
+   ]},
+  {id:2,title:"Calculus – Differentiation",course:"MTH 201",difficulty:"Intermediate",duration:15,participants:2890,
+   questions:[
+     {id:1,question:"Derivative of x³?",options:["3x²","x²","3x","2x³"],correctIndex:0,explanation:"Power rule: d/dx(x³) = 3x²."},
+     {id:2,question:"d/dx(sin x)?",options:["cos x","-cos x","-sin x","tan x"],correctIndex:0,explanation:"Derivative of sin(x) is cos(x)."},
+     {id:3,question:"Derivative of a constant?",options:["1","The constant","0","Undefined"],correctIndex:2,explanation:"Derivative of any constant is 0."},
+   ]},
+  {id:3,title:"Newton's Laws",course:"PHY 101",difficulty:"Beginner",duration:10,participants:1950,
+   questions:[
+     {id:1,question:"Newton's First Law is called?",options:["Law of Acceleration","Law of Inertia","Law of Reaction","Law of Gravity"],correctIndex:1,explanation:"Newton's First Law is the Law of Inertia."},
+     {id:2,question:"F = ma is Newton's _____ Law.",options:["First","Second","Third","Fourth"],correctIndex:1,explanation:"F = ma is the Second Law."},
+     {id:3,question:"Every action has equal & opposite reaction — which law?",options:["First","Second","Third","Zeroth"],correctIndex:2,explanation:"Newton's Third Law."},
+   ]},
+  {id:4,title:"Data Structures",course:"CSC 301",difficulty:"Advanced",duration:20,participants:1100,
+   questions:[
+     {id:1,question:"Time complexity of array access by index?",options:["O(n)","O(log n)","O(1)","O(n²)"],correctIndex:2,explanation:"Array access is O(1) — constant time."},
+     {id:2,question:"Which structure uses LIFO?",options:["Queue","Stack","Linked List","Tree"],correctIndex:1,explanation:"Stack uses Last In First Out."},
+     {id:3,question:"Worst case of bubble sort?",options:["O(n)","O(n log n)","O(n²)","O(1)"],correctIndex:2,explanation:"Bubble sort worst case is O(n²)."},
+   ]},
+];
+const fcInit=[
+  {id:1,front:"Powerhouse of the cell?",back:"Mitochondria — produces ATP through cellular respiration.",course:"BIO 202",mastered:false},
+  {id:2,front:"Newton's Second Law?",back:"F = ma — Force equals mass times acceleration.",course:"PHY 101",mastered:false},
+  {id:3,front:"Chemical formula for water?",back:"H₂O — two hydrogen atoms bonded to one oxygen.",course:"CHM 101",mastered:false},
+  {id:4,front:"What does CPU stand for?",back:"Central Processing Unit — the brain of a computer.",course:"CSC 101",mastered:false},
+  {id:5,front:"What is photosynthesis?",back:"Plants convert sunlight + CO₂ + H₂O into glucose and oxygen.",course:"BIO 101",mastered:false},
+  {id:6,front:"Pythagorean theorem?",back:"a² + b² = c² — right-angled triangle side relationship.",course:"MTH 101",mastered:false},
+  {id:7,front:"Ohm's Law?",back:"V = IR — Voltage equals Current × Resistance.",course:"PHY 201",mastered:false},
+  {id:8,front:"What is a linked list?",back:"A linear data structure where each node points to the next via a pointer.",course:"CSC 301",mastered:false},
+];
+const forumInit=[
+  {id:1,author:"Ama Serwaa",avatar:"👩‍🎓",title:"Best way to study Organic Chemistry?",content:"I've been struggling with organic chemistry. Any tips for memorizing functional groups?",course:"CHM 101",likes:24,replies:8,timestamp:"2 hours ago",tags:["chemistry","study-tips"]},
+  {id:2,author:"Kwame Otieno",avatar:"🧑‍💻",title:"MTH 201 Calculus resources needed!",content:"Exams in 3 weeks. Can someone share good calculus past questions?",course:"MTH 201",likes:18,replies:12,timestamp:"5 hours ago",tags:["calculus","exam-prep"]},
+  {id:3,author:"Abena Frimpong",avatar:"👩‍🔬",title:"Study group for CSC 301 finals?",content:"Looking to form a virtual study group for CSC 301. We can share resources and quiz each other!",course:"CSC 301",likes:31,replies:20,timestamp:"1 day ago",tags:["CSC","study-group"]},
+];
+const testimonials=[
+  {name:"Ama Owusu",role:"UG · Level 300",avatar:"👩‍🎓",quote:"Study Smart helped me jump from a C to an A in Calculus! The past questions are incredibly useful."},
+  {name:"Kwesi Asante",role:"KNUST · Level 200",avatar:"🧑‍🎓",quote:"The quiz feature feels like real CBT exams. I practiced every day and nailed it!"},
+  {name:"Efua Mensah",role:"UCC · Level 400",avatar:"👩‍🔬",quote:"Flashcards helped me memorize everything for biochemistry finals in just 3 days. Brilliant!"},
+  {name:"Kofi Boateng",role:"UDS · Level 100",avatar:"🧑‍💻",quote:"Study Smart made it easy to find resources organized by course and level. Game changer!"},
+];
+const lbData=[
+  {rank:1,name:"Abena Frimpong",school:"KNUST",xp:12480,quizzes:87,streak:42,avatar:"👸"},
+  {rank:2,name:"Kwame Otieno",school:"UG Legon",xp:11230,quizzes:76,streak:35,avatar:"🧑‍🎓"},
+  {rank:3,name:"Ama Serwaa",school:"UCC",xp:9870,quizzes:65,streak:28,avatar:"👩‍🔬"},
+  {rank:4,name:"Kojo Mensah",school:"UDS",xp:8540,quizzes:59,streak:21,avatar:"🧑‍💻"},
+  {rank:5,name:"Akosua Adu",school:"UENR",xp:7820,quizzes:54,streak:18,avatar:"👩‍🎓"},
+  {rank:6,name:"Fiifi Asare",school:"KNUST",xp:6990,quizzes:47,streak:14,avatar:"🧑‍🔬"},
+  {rank:7,name:"Esi Antwi",school:"UG Legon",xp:5430,quizzes:38,streak:9,avatar:"👩‍💻"},
+];
+const qStats=[
+  {icon:"📚",value:"2,400+",label:"Study Materials"},
+  {icon:"👨‍🎓",value:"65,000+",label:"Students"},
+  {icon:"🧠",value:"500+",label:"Quiz Questions"},
+  {icon:"🏆",value:"98%",label:"Pass Rate"},
+];
+const cats=["All","Slides","Lecture Notes","Past Questions","Textbooks","Lab Reports"];
+
+/* ════════════════════ HELPERS ════════════════════ */
+const fmt=s=>`${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}`;
+const isAdm=e=>e&&ADMINS.some(a=>a.toLowerCase()===e.toLowerCase());
+
+/* ════════════════════ ICONS ════════════════════ */
+const Paths={
+  home:"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z",
+  book:"M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z",
+  check:"M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3",
+  layers:"M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+  msg:"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  dollar:"M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
+  settings:"M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  user:"M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+  search:"M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35",
+  award:"M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM8.21 13.89L7 23l5-3 5 3-1.21-9.12",
+  clock:"M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2",
+  bookmark:"M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z",
+  menu:"M3 12h18M3 6h18M3 18h18",
+  x:"M18 6 6 18M6 6l12 12",
+  upload:"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12",
+  download:"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
+  chevron:"M9 18l6-6-6-6",
+  logout:"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
+  moon:"M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
+  sun:"M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z",
+  zap:"M13 2 3 14h9l-1 8 10-12h-9l1-8z",
+  target:"M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z",
+  shield:"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+  star:"M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+};
+const Ic=({n,s=16})=>(
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:"inline-block",flexShrink:0}}>
+    <path d={Paths[n]||Paths.star}/>
+  </svg>
+);
+
+/* ════════════════════ PAYMENT MODAL ════════════════════ */
+function PayModal({plan,user,onClose,onSuccess,dm}){
+  const [name,setName]=useState(user?.name||"");
+  const [email,setEmail]=useState(user?.email||"");
+  const [phone,setPhone]=useState("");
+  const [gw,setGw]=useState("flutterwave");
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState("");
+  const [showManual,setShowManual]=useState(false);
+  const [copied,setCopied]=useState(false);
+  const ts=dm?"#6b7280":"#94a3b8";
+  const ic=`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition ${dm?"border-gray-700 bg-gray-800 text-white placeholder:text-gray-500":"border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400"}`;
+  const manual=PaymentHandler.getTelecelInstructions(plan);
+
+  const copy=()=>{
+    navigator.clipboard.writeText(CONFIG.OWNER_TELECEL).catch(()=>{});
+    setCopied(true);setTimeout(()=>setCopied(false),2500);
+  };
+
+  const pay=()=>{
+    if(!name.trim()||!email.trim()||!phone.trim()){setErr("Please fill in all fields.");return;}
+    if(!/\S+@\S+\.\S+/.test(email)){setErr("Please enter a valid email.");return;}
+    setErr("");setBusy(true);
+    const args={plan,userEmail:email,userName:name,userPhone:phone,
+      onSuccess:r=>{setBusy(false);onSuccess(r);},onClose:()=>setBusy(false)};
+    try{
+      if(gw==="paystack") PaymentHandler.payWithPaystack(args);
+      else PaymentHandler.payWithFlutterwave(args);
+    }catch(e){setBusy(false);setErr("Gateway error. Please try the other option.");}
+  };
+
+  return(
+    <div className="modal-overlay" style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",backgroundColor:"rgba(0,0,0,.75)",padding:16}} onClick={onClose}>
+      <div style={{width:"100%",maxWidth:520,borderRadius:"1.5rem",background:dm?"#111827":"white",boxShadow:"0 30px 60px rgba(0,0,0,.4)",position:"relative",maxHeight:"92vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{background:"linear-gradient(135deg,#4f46e5,#7c3aed)",borderRadius:"1.5rem 1.5rem 0 0",padding:"24px 28px",color:"white",position:"relative"}}>
+          <button onClick={onClose} style={{position:"absolute",top:14,right:14,background:"rgba(255,255,255,.2)",border:"none",borderRadius:"50%",width:32,height:32,cursor:"pointer",color:"white",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          <div style={{fontSize:12,opacity:.75,marginBottom:4}}>Subscribing to</div>
+          <div style={{fontSize:22,fontWeight:800}}>{plan.label}</div>
+          <div style={{fontSize:38,fontWeight:900,margin:"4px 0"}}>{CONFIG.CURRENCY_SYMBOL}{plan.price}<span style={{fontSize:15,opacity:.7}}>{plan.period}</span></div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:12}}>
+            {[`🦋 Flutterwave #${CONFIG.FLUTTERWAVE_MERCHANT_ID}`,`🔒 Paystack`,`📱 Telecel ${CONFIG.OWNER_TELECEL}`].map(b=>(
+              <span key={b} style={{background:"rgba(255,255,255,.15)",borderRadius:99,padding:"3px 12px",fontSize:11,fontWeight:600}}>{b}</span>
+            ))}
+          </div>
+        </div>
+
+        <div style={{padding:28,display:"flex",flexDirection:"column",gap:20}}>
+          {/* Step 1 — Details */}
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+              <span style={{width:24,height:24,borderRadius:"50%",background:"#4f46e5",color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>1</span>
+              <span style={{fontWeight:700,fontSize:14}}>Your Details</span>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="Full Name" className={ic}/>
+              <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email Address" className={ic}/>
+              <input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="Phone Number (e.g. 0508793262)" className={ic}/>
+            </div>
+          </div>
+
+          {/* Step 2 — Gateway */}
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+              <span style={{width:24,height:24,borderRadius:"50%",background:"#4f46e5",color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>2</span>
+              <span style={{fontWeight:700,fontSize:14}}>Choose Payment Gateway</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {/* Flutterwave */}
+              <div onClick={()=>setGw("flutterwave")} style={{borderRadius:16,border:"2px solid",borderColor:gw==="flutterwave"?"#f97316":dm?"#374151":"#e2e8f0",padding:16,cursor:"pointer",background:gw==="flutterwave"?dm?"rgba(249,115,22,.1)":"#fff7ed":"transparent",transition:"all .2s",position:"relative"}}>
+                {gw==="flutterwave"&&<span style={{position:"absolute",top:8,right:8,background:"#f97316",color:"white",borderRadius:99,padding:"2px 8px",fontSize:10,fontWeight:700}}>✓ SELECTED</span>}
+                <div style={{fontWeight:800,fontSize:15,color:"#f97316",marginBottom:6}}>🦋 Flutterwave</div>
+                <div style={{fontSize:11,color:ts,marginBottom:8}}>Merchant: <strong>{CONFIG.FLUTTERWAVE_MERCHANT_ID}</strong></div>
+                {["📱 MTN MoMo","📱 Telecel Cash","📱 Vodafone Cash","💳 Visa/Mastercard","🏦 Bank Transfer"].map(m=>(
+                  <div key={m} style={{fontSize:11,color:ts}}>• {m}</div>
+                ))}
+              </div>
+              {/* Paystack */}
+              <div onClick={()=>setGw("paystack")} style={{borderRadius:16,border:"2px solid",borderColor:gw==="paystack"?"#4f46e5":dm?"#374151":"#e2e8f0",padding:16,cursor:"pointer",background:gw==="paystack"?dm?"rgba(79,70,229,.1)":"#eef2ff":"transparent",transition:"all .2s",position:"relative"}}>
+                {gw==="paystack"&&<span style={{position:"absolute",top:8,right:8,background:"#4f46e5",color:"white",borderRadius:99,padding:"2px 8px",fontSize:10,fontWeight:700}}>✓ SELECTED</span>}
+                <div style={{fontWeight:800,fontSize:15,color:"#4f46e5",marginBottom:6}}>🔒 Paystack</div>
+                <div style={{fontSize:11,color:ts,marginBottom:8}}>Ghana's trusted gateway</div>
+                {["📱 MTN MoMo","📱 Telecel Cash","📱 AirtelTigo","💳 Visa/Mastercard","🏦 Bank"].map(m=>(
+                  <div key={m} style={{fontSize:11,color:ts}}>• {m}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Info */}
+          <div style={{borderRadius:12,background:dm?"rgba(16,185,129,.08)":"#f0fdf4",border:"1px solid",borderColor:dm?"rgba(16,185,129,.2)":"#bbf7d0",padding:"12px 16px",fontSize:12,color:dm?"#6ee7b7":"#065f46",display:"flex",alignItems:"flex-start",gap:8}}>
+            <Ic n="shield" s={14}/>
+            <span>Payment processed by <strong>Flutterwave</strong> (Merchant: <strong>{CONFIG.FLUTTERWAVE_MERCHANT_ID}</strong>) or <strong>Paystack</strong>. Money settles directly to the Study Smart owner's account. Your Telecel: <strong>{CONFIG.OWNER_TELECEL}</strong></span>
+          </div>
+
+          {err&&<div style={{borderRadius:12,background:"#fef2f2",border:"1px solid #fca5a5",padding:"12px 16px",fontSize:13,color:"#dc2626",fontWeight:600}}>⚠️ {err}</div>}
+
+          {/* Pay button */}
+          <button onClick={pay} disabled={busy} style={{width:"100%",padding:16,borderRadius:14,border:"none",cursor:busy?"not-allowed":"pointer",fontSize:15,fontWeight:800,color:"white",background:busy?"#9ca3af":gw==="flutterwave"?"linear-gradient(135deg,#f97316,#f59e0b)":"linear-gradient(135deg,#4f46e5,#7c3aed)",boxShadow:busy?"none":"0 6px 20px rgba(0,0,0,.2)",transition:"all .2s",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+            {busy
+              ?<><div style={{width:18,height:18,border:"2px solid rgba(255,255,255,.3)",borderTop:"2px solid white",borderRadius:"50%",animation:"spin .8s linear infinite"}}/> Processing…</>
+              :<>{gw==="flutterwave"?"🦋 Pay with Flutterwave":"🔒 Pay with Paystack"} — {CONFIG.CURRENCY_SYMBOL}{plan.price}</>
+            }
+          </button>
+
+          {/* Manual Telecel fallback */}
+          <button onClick={()=>setShowManual(!showManual)} style={{width:"100%",padding:12,borderRadius:12,border:"1px dashed",borderColor:dm?"#374151":"#cbd5e1",background:"transparent",color:ts,cursor:"pointer",fontSize:13,fontWeight:600}}>
+            📱 {showManual?"Hide":"Show"} Manual Telecel Cash Option
+          </button>
+
+          {showManual&&(
+            <div style={{borderRadius:16,background:"linear-gradient(135deg,rgba(220,38,38,.08),rgba(249,115,22,.08))",border:"1px solid rgba(220,38,38,.2)",padding:20}}>
+              <div style={{fontWeight:700,fontSize:14,marginBottom:12,color:"#dc2626"}}>📱 Pay Directly — Telecel Cash</div>
+              <div style={{background:dm?"#1f2937":"white",borderRadius:12,padding:"14px 18px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+                <div>
+                  <div style={{fontSize:11,color:ts,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.08em"}}>Telecel Cash Number</div>
+                  <div style={{fontFamily:"monospace",fontSize:28,fontWeight:900,color:"#dc2626",letterSpacing:"0.15em"}}>{CONFIG.OWNER_TELECEL}</div>
+                  <div style={{fontSize:12,color:ts}}>Account: <strong>{CONFIG.OWNER_NAME}</strong></div>
+                </div>
+                <button onClick={copy} style={{padding:"10px 18px",borderRadius:10,background:copied?"#10b981":"#dc2626",color:"white",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>
+                  {copied?"✓ Copied!":"Copy"}
+                </button>
+              </div>
+              <div style={{fontSize:13,color:ts,lineHeight:1.7,display:"flex",flexDirection:"column",gap:6}}>
+                <div><strong>Amount:</strong> {CONFIG.CURRENCY_SYMBOL}{plan.price}</div>
+                <div><strong>Reference:</strong> <code style={{background:dm?"#374151":"#f1f5f9",padding:"2px 8px",borderRadius:6,fontSize:12}}>{manual.reference}</code></div>
+                <div><strong>How to pay:</strong> {manual.instruction}</div>
+              </div>
+              <a href={manual.whatsapp+manual.reference} target="_blank" rel="noopener noreferrer"
+                style={{display:"inline-flex",alignItems:"center",gap:8,padding:"10px 20px",borderRadius:99,background:"#25D366",color:"white",textDecoration:"none",fontSize:13,fontWeight:700,marginTop:12}}>
+                💬 Confirm Payment on WhatsApp
+              </a>
+            </div>
+          )}
+
+          <p style={{textAlign:"center",fontSize:11,color:ts,margin:0}}>
+            🔒 256-bit SSL · Flutterwave Merchant {CONFIG.FLUTTERWAVE_MERCHANT_ID} · {CONFIG.CURRENCY_SYMBOL} Ghana Cedis
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════ PRICING SECTION ════════════════════ */
+function PricingSection({dm,user,setUser,toast,nav}){
+  const [activePlan,setActivePlan]=useState(null);
+  const [success,setSuccess]=useState(null);
+  const ts=dm?"#6b7280":"#94a3b8";
+
+  const handleSuccess=r=>{
+    setActivePlan(null);setSuccess(r);
+    if(user) setUser({...user,isPremium:true,badges:[...(user.badges||[]),"👑 Premium"]});
+    toast(`💎 Premium activated via ${r.gateway}! Enjoy unlimited access.`);
+  };
+
+  return(
+    <div className="fade-enter" style={{display:"flex",flexDirection:"column",gap:32}}>
+      {activePlan&&<PayModal plan={activePlan} user={user} dm={dm} onClose={()=>setActivePlan(null)} onSuccess={handleSuccess}/>}
+
+      {/* Header */}
+      <div style={{textAlign:"center"}}>
+        <p style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#6366f1",marginBottom:8}}>💳 Pricing Plans</p>
+        <h2 style={{fontSize:36,fontWeight:900,margin:"0 0 12px"}}>Choose Your Plan</h2>
+        <p style={{fontSize:14,color:ts,maxWidth:560,margin:"0 auto 16px"}}>
+          Pay securely via <strong>Flutterwave</strong> (Merchant: <strong>{CONFIG.FLUTTERWAVE_MERCHANT_ID}</strong>) or <strong>Paystack</strong>. Money goes <strong>directly</strong> to your account.
+        </p>
+        <div style={{display:"flex",justifyContent:"center",gap:8,flexWrap:"wrap"}}>
+          {[{t:"🦋 Flutterwave",bg:"#fff7ed",c:"#c2410c"},{t:"🔒 Paystack",bg:"#eef2ff",c:"#4338ca"},
+            {t:"📱 MTN MoMo",bg:"#fef3c7",c:"#b45309"},{t:`📱 Telecel ${CONFIG.OWNER_TELECEL}`,bg:"#fef2f2",c:"#dc2626"},
+            {t:"💳 Visa/MC",bg:"#ecfdf5",c:"#059669"}].map(b=>(
+            <span key={b.t} style={{borderRadius:99,background:b.bg,color:b.c,padding:"6px 14px",fontSize:12,fontWeight:700}}>{b.t}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Success */}
+      {success&&(
+        <div className="fade-enter" style={{maxWidth:520,margin:"0 auto",width:"100%",borderRadius:"1.5rem",border:"2px solid #a7f3d0",background:dm?"#111827":"#f0fdf4",padding:32,textAlign:"center"}}>
+          <div style={{fontSize:56,marginBottom:12}}>🎉</div>
+          <h3 style={{fontSize:22,fontWeight:800,color:"#059669",marginBottom:8}}>Payment Successful!</h3>
+          <p style={{fontSize:14,color:ts,marginBottom:16}}>
+            <strong>{success.plan}</strong> activated! Ref: <code style={{background:dm?"#1f2937":"#e2e8f0",padding:"2px 8px",borderRadius:6}}>{success.reference}</code>
+          </p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20,textAlign:"left",background:dm?"#1f2937":"white",borderRadius:12,padding:16}}>
+            {[["Gateway",success.gateway],["Merchant ID",CONFIG.FLUTTERWAVE_MERCHANT_ID],["Amount",`${CONFIG.CURRENCY_SYMBOL}${success.amount}`],["Status","✅ Active"]].map(([k,v])=>(
+              <div key={k}><div style={{fontSize:11,color:ts,textTransform:"uppercase"}}>{k}</div><div style={{fontSize:13,fontWeight:700,color:k==="Status"?"#059669":"inherit"}}>{v}</div></div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={()=>nav("library")} style={{flex:1,padding:13,borderRadius:12,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:700}}>📚 Library</button>
+            <button onClick={()=>nav("quizzes")} style={{flex:1,padding:13,borderRadius:12,border:"1px solid",borderColor:dm?"#374151":"#e2e8f0",background:"transparent",color:dm?"white":"#1e293b",cursor:"pointer",fontSize:13,fontWeight:700}}>🧠 Quizzes</button>
+          </div>
+        </div>
+      )}
+
+      {/* Plan cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:24,maxWidth:1000,margin:"0 auto",width:"100%"}}>
+        {/* Free */}
+        <div style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:32,background:dm?"#111827":"white"}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#10b981",marginBottom:8}}>Free</div>
+          <div style={{fontSize:40,fontWeight:900,marginBottom:20}}>{CONFIG.CURRENCY_SYMBOL}0<span style={{fontSize:16,fontWeight:400,color:ts}}>/month</span></div>
+          <ul style={{listStyle:"none",padding:0,margin:"0 0 24px",display:"flex",flexDirection:"column",gap:10}}>
+            {[["✅","Access free resources"],["✅","3 quizzes per day"],["✅","Discussion forum"],["✅","Study timer"],["❌","Premium resources"],["❌","Unlimited quizzes"]].map(([ic,tx],i)=>(
+              <li key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:i>=4?dm?"#4b5563":"#d1d5db":dm?"#9ca3af":"#64748b",opacity:i>=4?.4:1}}>{ic} {tx}</li>
+            ))}
+          </ul>
+          <button style={{width:"100%",padding:13,borderRadius:12,border:"1px solid",borderColor:dm?"#374151":"#e2e8f0",background:"transparent",color:dm?"white":"#1e293b",cursor:"pointer",fontSize:13,fontWeight:700}}>Get Started Free</button>
+        </div>
+
+        {/* Premium plans */}
+        {CONFIG.PLANS.map((plan,pi)=>(
+          <div key={plan.id} className="card-hover" style={{borderRadius:"1.5rem",padding:32,position:"relative",
+            background:pi===0?"linear-gradient(135deg,#4f46e5,#6d28d9)":dm?"#111827":"white",
+            border:`1px solid ${pi===0?"transparent":dm?"#1f2937":"#e2e8f0"}`,
+            color:pi===0?"white":"inherit",boxShadow:pi===0?"0 20px 50px rgba(99,102,241,.3)":"none"}}>
+            {plan.badge&&<div style={{position:"absolute",top:-12,right:24,borderRadius:99,background:"#fbbf24",color:"#78350f",padding:"4px 16px",fontSize:11,fontWeight:700}}>{plan.badge}</div>}
+            <div style={{fontSize:13,fontWeight:700,color:pi===0?"#c4b5fd":"#7c3aed",marginBottom:8}}>{plan.label}</div>
+            <div style={{fontSize:40,fontWeight:900,marginBottom:6}}>{CONFIG.CURRENCY_SYMBOL}{plan.price}<span style={{fontSize:16,fontWeight:400,opacity:.6}}>{plan.period}</span></div>
+            <p style={{fontSize:13,opacity:pi===0?.8:undefined,color:pi===0?undefined:ts,marginBottom:20}}>{plan.description}</p>
+            <ul style={{listStyle:"none",padding:0,margin:"0 0 24px",display:"flex",flexDirection:"column",gap:10}}>
+              {plan.features.map(f=><li key={f} style={{display:"flex",alignItems:"center",gap:8,fontSize:13,opacity:pi===0?.85:undefined,color:pi===0?undefined:dm?"#9ca3af":"#64748b"}}>✅ {f}</li>)}
+            </ul>
+            <button onClick={()=>setActivePlan(plan)}
+              style={{width:"100%",padding:14,borderRadius:12,border:"none",cursor:"pointer",fontSize:13,fontWeight:800,
+                background:pi===0?"white":"linear-gradient(135deg,#f97316,#f59e0b)",
+                color:pi===0?"#4338ca":"white",boxShadow:"0 4px 16px rgba(0,0,0,.15)",marginBottom:8,
+                display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+              💳 Subscribe — {CONFIG.CURRENCY_SYMBOL}{plan.price}
+            </button>
+            <div style={{display:"flex",justifyContent:"center",gap:6,flexWrap:"wrap"}}>
+              {["🦋 Flutterwave","🔒 Paystack","📱 MoMo","📱 Telecel"].map(g=>(
+                <span key={g} style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:pi===0?"rgba(255,255,255,.15)":dm?"#1f2937":"#f8fafc",color:pi===0?"rgba(255,255,255,.8)":ts,fontWeight:600}}>{g}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Trust bar */}
+      <div style={{maxWidth:800,margin:"0 auto",width:"100%",borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:"24px 32px",background:dm?"#111827":"white"}}>
+        <h3 style={{fontSize:15,fontWeight:700,textAlign:"center",marginBottom:20}}>🔒 All Accepted Payment Methods</h3>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12,marginBottom:20}}>
+          {[{name:"MTN Mobile Money",icon:"🟡",c:"#b45309",bg:"#fef3c7"},{name:`Telecel ${CONFIG.OWNER_TELECEL}`,icon:"🔴",c:"#dc2626",bg:"#fef2f2"},
+            {name:"Vodafone Cash",icon:"🔴",c:"#dc2626",bg:"#fef2f2"},{name:"AirtelTigo Money",icon:"🟠",c:"#c2410c",bg:"#fff7ed"},
+            {name:"Visa Card",icon:"💳",c:"#1d4ed8",bg:"#eff6ff"},{name:"Mastercard",icon:"💳",c:"#dc2626",bg:"#fef2f2"}].map(m=>(
+            <div key={m.name} style={{borderRadius:12,background:m.bg,padding:12,textAlign:"center"}}>
+              <div style={{fontSize:24,marginBottom:4}}>{m.icon}</div>
+              <div style={{fontSize:11,fontWeight:700,color:m.c}}>{m.name}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+          <div style={{borderRadius:12,background:dm?"rgba(249,115,22,.08)":"#fff7ed",border:"1px solid rgba(249,115,22,.2)",padding:"14px 16px"}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#f97316",marginBottom:4}}>🦋 Flutterwave</div>
+            <div style={{fontSize:12,color:ts}}>Merchant ID: <strong>{CONFIG.FLUTTERWAVE_MERCHANT_ID}</strong></div>
+            <div style={{fontSize:12,color:ts}}>Settles directly to your account</div>
+          </div>
+          <div style={{borderRadius:12,background:dm?"rgba(79,70,229,.08)":"#eef2ff",border:"1px solid rgba(99,102,241,.2)",padding:"14px 16px"}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#4f46e5",marginBottom:4}}>🔒 Paystack</div>
+            <div style={{fontSize:12,color:ts}}>Ghana's most trusted gateway</div>
+            <div style={{fontSize:12,color:ts}}>Settlement: 1–2 business days</div>
+          </div>
+        </div>
+        <div style={{textAlign:"center",display:"flex",justifyContent:"center",gap:20,flexWrap:"wrap",fontSize:12,color:ts}}>
+          <span>🔒 256-bit SSL</span><span>⚡ Instant Activation</span>
+          <span>🇬🇭 Ghana Cedis (GHS)</span><span>📧 Email Receipt</span><span>💰 Direct to Your Account</span>
+        </div>
+      </div>
+
+      {/* FAQ */}
+      <div style={{maxWidth:640,margin:"0 auto",width:"100%"}}>
+        <h3 style={{fontSize:18,fontWeight:700,marginBottom:16,textAlign:"center"}}>❓ Payment FAQ</h3>
+        {[
+          {q:"Where does my money go?",a:`Payments are processed by Flutterwave (Merchant ID: ${CONFIG.FLUTTERWAVE_MERCHANT_ID}) or Paystack and settled directly to the Study Smart owner's bank account.`},
+          {q:"Can I pay with Telecel Cash?",a:`Yes! Choose Flutterwave or Paystack and select "Telecel Cash / AirtelTigo". You can also use the manual option to send directly to ${CONFIG.OWNER_TELECEL}.`},
+          {q:"How fast is activation?",a:"Instant — as soon as payment is confirmed by the gateway, your premium account is unlocked automatically."},
+          {q:"What if my payment fails?",a:`WhatsApp us at ${CONFIG.SUPPORT_WHATSAPP} with your transaction ID and we'll resolve within 1 hour.`},
+          {q:"Can I get a refund?",a:"Yes — contact us within 24 hours with your transaction reference for a full refund."},
+        ].map((f,i)=>(
+          <div key={i} style={{borderRadius:16,border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:"16px 20px",marginBottom:10,background:dm?"#111827":"white"}}>
+            <div style={{fontWeight:700,fontSize:14,marginBottom:6}}>Q: {f.q}</div>
+            <div style={{fontSize:13,color:ts,lineHeight:1.6}}>A: {f.a}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════ MAIN APP ════════════════════ */
+function App(){
+  const [sec,setSec]=useState("home");
+  const [dm,setDm]=useState(false);
+  const [mob,setMob]=useState(false);
+  const [cat,setCat]=useState("All");
+  const [srch,setSrch]=useState("");
+  const [authM,setAuthM]=useState("signup");
+  const [showAuth,setShowAuth]=useState(false);
+  const [quiz,setQuiz]=useState(null);
+  const [ans,setAns]=useState({});
+  const [subm,setSubm]=useState(false);
+  const [tLeft,setTLeft]=useState(0);
+  const [fcI,setFcI]=useState(0);
+  const [fcFlip,setFcFlip]=useState(false);
+  const [fcList,setFcList]=useState(fcInit);
+  const [forum,setForum]=useState(forumInit);
+  const [tmrRun,setTmrRun]=useState(false);
+  const [tmrSec,setTmrSec]=useState(25*60);
+  const [tmrMode,setTmrMode]=useState("focus");
+  const [bmarks,setBmarks]=useState([]);
+  const [toasts,setToasts]=useState([]);
+  const [authF,setAuthF]=useState({fullName:"",email:"",password:"",school:""});
+  const [adminF,setAdminF]=useState({email:"",password:"",code:""});
+  const [upF,setUpF]=useState({title:"",course:"",level:"",category:"Slides",week:"",description:"",access:"Premium",pages:"",format:"PDF",tags:""});
+  const [postF,setPostF]=useState({title:"",content:"",course:"",tags:""});
+  const [user,setUser]=useState(null);
+  const [res,setRes]=useState(()=>{
+    try{const s=localStorage.getItem("ss-res");if(s){const p=JSON.parse(s);if(p.length)return p;}}catch{}
+    return initRes;
+  });
+  const tRef=useRef(null);const tid=useRef(0);
+
+  useEffect(()=>{try{localStorage.setItem("ss-res",JSON.stringify(res));}catch{}},[res]);
+  useEffect(()=>{
+    if(quiz&&tLeft>0&&!subm){const t=setInterval(()=>setTLeft(p=>p-1),1000);return()=>clearInterval(t);}
+    if(tLeft===0&&quiz&&!subm&&sec==="quiz-active") setSubm(true);
+  },[quiz,tLeft,subm,sec]);
+  useEffect(()=>{
+    if(tmrRun&&tmrSec>0){tRef.current=setInterval(()=>setTmrSec(p=>p-1),1000);return()=>{if(tRef.current)clearInterval(tRef.current);};}
+    if(tmrSec===0&&tmrRun){setTmrRun(false);toast(tmrMode==="focus"?"🎉 Focus done! Take a break.":"⏰ Break over! Back to study.");
+      if(tmrMode==="focus"){setTmrMode("break");setTmrSec(5*60);}else{setTmrMode("focus");setTmrSec(25*60);}}
+  },[tmrRun,tmrSec,tmrMode]);
+
+  const toast=useCallback(msg=>{const id=tid.current++;setToasts(p=>[...p,{id,msg}]);setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)),4000);},[]);
+  const filtered=useMemo(()=>res.filter(r=>{const cm=cat==="All"||r.category===cat;const h=`${r.title} ${r.course} ${r.description} ${r.tags.join(" ")}`.toLowerCase();return cm&&h.includes(srch.toLowerCase());}),[res,srch,cat]);
+  const nav=s=>{setSec(s);setMob(false);window.scrollTo({top:0,behavior:"smooth"});};
+  const bm=id=>setBmarks(p=>{const h=p.includes(id);toast(h?"Bookmark removed":"📌 Bookmarked!");return h?p.filter(b=>b!==id):[...p,id];});
+
+  const handleAuth=e=>{
+    e.preventDefault();
+    const name=authM==="signup"?authF.fullName.trim():(authF.email.split("@")[0]||"Student");
+    const role=isAdm(authF.email)?"Admin":"Student";
+    setUser({name,email:authF.email,role,school:authF.school||"University",isPremium:role==="Admin",
+      joinDate:new Date().toLocaleDateString(),streak:0,xp:0,quizzesCompleted:0,bookmarks:[],
+      badges:role==="Admin"?["🛡️ Admin","👑 Premium"]:["🆕 New Member"]});
+    setAuthF({fullName:"",email:"",password:"",school:""});setShowAuth(false);
+    toast(role==="Admin"?`Welcome Admin! 🛡️`:`Welcome ${name}! 🎉`);
+  };
+  const handleAdminLogin=e=>{
+    e.preventDefault();
+    if(!isAdm(adminF.email)){toast("⛔ Access denied.");return;}
+    setUser({name:adminF.email.split("@")[0]||"Admin",email:adminF.email,role:"Admin",school:"Study Smart HQ",isPremium:true,
+      joinDate:new Date().toLocaleDateString(),streak:0,xp:0,quizzesCompleted:0,bookmarks:[],
+      badges:["🛡️ Admin","👑 Premium"]});
+    setAdminF({email:"",password:"",code:""});nav("admin");toast("🛡️ Admin access granted!");
+  };
+  const handleUpload=e=>{
+    e.preventDefault();
+    const r={id:Date.now(),title:upF.title,course:upF.course,level:upF.level,category:upF.category,
+      week:upF.week,description:upF.description,access:upF.access,pages:Number(upF.pages)||0,
+      downloads:0,format:upF.format,tags:upF.tags.split(",").map(t=>t.trim()).filter(Boolean),
+      rating:0,dateAdded:new Date().toISOString().slice(0,10)};
+    setRes(p=>[r,...p]);setUpF({title:"",course:"",level:"",category:"Slides",week:"",description:"",access:"Premium",pages:"",format:"PDF",tags:""});
+    toast("📤 Resource uploaded!");nav("library");
+  };
+  const handlePost=e=>{
+    e.preventDefault();
+    setForum(p=>[{id:Date.now(),author:user?.name||"Anonymous",avatar:"🧑‍🎓",title:postF.title,
+      content:postF.content,course:postF.course,likes:0,replies:0,timestamp:"Just now",
+      tags:postF.tags.split(",").map(t=>t.trim()).filter(Boolean)},...p]);
+    setPostF({title:"",content:"",course:"",tags:""});toast("💬 Post published!");
+  };
+  const startQuiz=q=>{setQuiz(q);setAns({});setSubm(false);setTLeft(q.duration*60);nav("quiz-active");};
+  const submitQuiz=()=>{
+    setSubm(true);
+    if(user){const sc=quiz.questions.filter(q=>ans[q.id]===q.correctIndex).length;const xp=sc*20;
+      setUser({...user,xp:user.xp+xp,quizzesCompleted:user.quizzesCompleted+1});toast(`🏆 +${xp} XP!`);}
+  };
+
+  const ts=dm?"#6b7280":"#94a3b8";
+  const ic=`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition ${dm?"border-gray-700 bg-gray-800 text-white placeholder:text-gray-500":"border-slate-200 bg-slate-50 text-slate-900 placeholder:text-slate-400"}`;
+  const navItems=[
+    {id:"home",label:"Home",icon:"home"},{id:"library",label:"Library",icon:"book"},
+    {id:"quizzes",label:"Quizzes",icon:"check"},{id:"flashcards",label:"Flashcards",icon:"layers"},
+    {id:"forum",label:"Forum",icon:"msg"},{id:"leaderboard",label:"Leaderboard",icon:"award"},
+    {id:"studytimer",label:"Study Timer",icon:"clock"},{id:"pricing",label:"Pricing",icon:"dollar"},
+    ...(user?.role==="Admin"?[{id:"admin",label:"Admin",icon:"settings"}]:[]),
+  ];
+
+  return(
+    <div style={{minHeight:"100vh",backgroundColor:dm?"#030712":"#f5f6ff",transition:"background-color .3s",color:dm?"white":"#1e293b"}}>
+      <div className="blob1" style={{background:dm?"#312e81":"#e9d5ff",opacity:dm?.2:.25}}/>
+      <div className="blob2" style={{background:dm?"#4c1d95":"#c7d2fe",opacity:dm?.2:.25}}/>
+      <div className="blob3" style={{background:dm?"#164e63":"#a5f3fc",opacity:dm?.15:.25}}/>
+
+      {/* Toasts */}
+      <div style={{position:"fixed",top:"1rem",right:"1rem",zIndex:999,display:"flex",flexDirection:"column",gap:8}}>
+        {toasts.map(t=><div key={t.id} className="toast-enter" style={{background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"white",borderRadius:"1rem",padding:"12px 20px",fontSize:14,fontWeight:600,boxShadow:"0 10px 30px rgba(99,102,241,.3)",maxWidth:300}}>{t.msg}</div>)}
+      </div>
+
+      {/* Mobile menu */}
+      {mob&&(
+        <div style={{position:"fixed",inset:0,zIndex:50,backgroundColor:"rgba(0,0,0,.5)"}} onClick={()=>setMob(false)}>
+          <div style={{width:280,height:"100%",padding:20,background:dm?"#111827":"white",boxShadow:"0 0 40px rgba(0,0,0,.2)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"2rem"}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#4f46e5,#a855f7)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:900,fontSize:14}}>SS</div>
+                <span style={{fontWeight:700,fontSize:18}}>Study Smart</span>
+              </div>
+              <button onClick={()=>setMob(false)} style={{background:"none",border:"none",cursor:"pointer"}}><Ic n="x"/></button>
+            </div>
+            <nav style={{display:"flex",flexDirection:"column",gap:4}}>
+              {navItems.map(item=>(
+                <button key={item.id} onClick={()=>nav(item.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderRadius:12,fontSize:14,fontWeight:500,border:"none",cursor:"pointer",background:sec===item.id?"#4f46e5":"transparent",color:sec===item.id?"white":ts}}>
+                  <Ic n={item.icon} s={18}/> {item.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <header style={{position:"sticky",top:0,zIndex:40,borderBottom:"1px solid",borderColor:dm?"#1f2937":"rgba(255,255,255,.6)",backdropFilter:"blur(20px)",background:dm?"rgba(3,7,18,.85)":"rgba(255,255,255,.75)"}}>
+        <div style={{maxWidth:1280,margin:"0 auto",padding:"12px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <button className="lg:hidden" onClick={()=>setMob(true)} style={{marginRight:8,background:"none",border:"none",cursor:"pointer"}}><Ic n="menu" s={22}/></button>
+            <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#4f46e5,#7c3aed,#a855f7)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:900,fontSize:14,boxShadow:"0 4px 16px rgba(99,102,241,.3)"}}>SS</div>
+            <div className="hidden sm:block">
+              <div style={{fontWeight:700,fontSize:18}}>Study Smart</div>
+              <div style={{fontSize:11,color:ts}}>Your academic success platform</div>
+            </div>
+          </div>
+          <nav className="hidden lg:flex" style={{display:"flex",alignItems:"center",gap:4}}>
+            {navItems.map(item=>(
+              <button key={item.id} onClick={()=>nav(item.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",borderRadius:99,fontSize:13,fontWeight:500,border:"none",cursor:"pointer",background:sec===item.id?"#4f46e5":"transparent",color:sec===item.id?"white":ts,transition:"all .2s"}}>
+                <Ic n={item.icon} s={16}/> <span className="hidden xl:inline">{item.label}</span>
+              </button>
+            ))}
+          </nav>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <button onClick={()=>setDm(!dm)} style={{padding:10,borderRadius:99,border:"none",cursor:"pointer",background:dm?"#1f2937":"#f1f5f9",color:dm?"#fbbf24":"#64748b"}}><Ic n={dm?"sun":"moon"} s={16}/></button>
+            {user?(
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <button onClick={()=>nav("profile")} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 16px 8px 12px",borderRadius:99,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:600}}>
+                  <Ic n="user" s={14}/> {user.name.split(" ")[0]} {user.isPremium&&"👑"}
+                </button>
+                <button onClick={()=>{setUser(null);toast("Signed out");}} style={{padding:10,borderRadius:99,border:"none",cursor:"pointer",background:dm?"#1f2937":"#f1f5f9"}}><Ic n="logout" s={14}/></button>
+              </div>
+            ):(
+              <button onClick={()=>setShowAuth(true)} style={{padding:"10px 20px",borderRadius:99,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:600}}>Sign In</button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Auth Modal */}
+      {showAuth&&(
+        <div className="modal-overlay" style={{position:"fixed",inset:0,zIndex:80,display:"flex",alignItems:"center",justifyContent:"center",backgroundColor:"rgba(0,0,0,.6)",padding:16}} onClick={()=>setShowAuth(false)}>
+          <div style={{width:"100%",maxWidth:460,borderRadius:"1.5rem",padding:"2rem",background:dm?"#111827":"white",boxShadow:"0 25px 50px rgba(0,0,0,.3)",position:"relative"}} onClick={e=>e.stopPropagation()}>
+            <button onClick={()=>setShowAuth(false)} style={{position:"absolute",top:16,right:16,background:"none",border:"none",cursor:"pointer"}}><Ic n="x" s={20}/></button>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
+              <div style={{width:48,height:48,borderRadius:16,background:"linear-gradient(135deg,#4f46e5,#a855f7)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:900,fontSize:18}}>SS</div>
+              <div><h2 style={{fontSize:22,fontWeight:800,margin:0}}>Welcome to Study Smart</h2><p style={{fontSize:13,color:ts,margin:0}}>Join 65,000+ students</p></div>
+            </div>
+            <div style={{background:dm?"#1f2937":"#f1f5f9",borderRadius:99,padding:4,display:"flex",marginBottom:20}}>
+              {["signup","signin"].map(m=>(
+                <button key={m} onClick={()=>setAuthM(m)} style={{flex:1,padding:10,borderRadius:99,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:authM===m?"#4f46e5":"transparent",color:authM===m?"white":ts,transition:"all .2s"}}>
+                  {m==="signup"?"Sign Up":"Sign In"}
+                </button>
+              ))}
+            </div>
+            <form onSubmit={handleAuth} style={{display:"flex",flexDirection:"column",gap:12}}>
+              {authM==="signup"&&<input type="text" required value={authF.fullName} onChange={e=>setAuthF({...authF,fullName:e.target.value})} placeholder="Full Name" className={ic}/>}
+              <input type="email" required value={authF.email} onChange={e=>setAuthF({...authF,email:e.target.value})} placeholder="Email" className={ic}/>
+              <input type="password" required value={authF.password} onChange={e=>setAuthF({...authF,password:e.target.value})} placeholder="Password" className={ic}/>
+              {authM==="signup"&&<input type="text" value={authF.school} onChange={e=>setAuthF({...authF,school:e.target.value})} placeholder="School/University" className={ic}/>}
+              <button type="submit" style={{width:"100%",borderRadius:16,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"white",border:"none",cursor:"pointer",padding:14,fontSize:14,fontWeight:700}}>
+                {authM==="signin"?"Sign In":"Create Account"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <main style={{position:"relative",zIndex:10,maxWidth:1280,margin:"0 auto",padding:"24px 24px 96px"}}>
+
+        {/* ══ HOME ══ */}
+        {sec==="home"&&(
+          <div className="fade-enter" style={{display:"flex",flexDirection:"column",gap:48}}>
+            {/* Hero */}
+            <div style={{borderRadius:"2.5rem",background:"linear-gradient(135deg,#4f46e5,#7c3aed,#a855f7)",padding:"clamp(32px,6vw,64px)",color:"white",boxShadow:"0 25px 60px rgba(99,102,241,.3)",position:"relative",overflow:"hidden"}}>
+              <div className="dot-pattern" style={{position:"absolute",inset:0}}/>
+              <div style={{position:"relative",display:"grid",gap:40}}>
+                <div>
+                  <div style={{display:"inline-flex",alignItems:"center",gap:8,borderRadius:99,border:"1px solid rgba(255,255,255,.2)",background:"rgba(255,255,255,.1)",padding:"8px 16px",fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",backdropFilter:"blur(10px)",marginBottom:24}}>
+                    <Ic n="zap" s={14}/> Trusted by 65,000+ students
+                  </div>
+                  <h1 style={{fontSize:"clamp(32px,5vw,60px)",fontWeight:900,lineHeight:1.15,margin:"0 0 24px"}}>
+                    Your Ultimate<br/>Academic Success<br/>
+                    <span style={{background:"linear-gradient(to right,#fbbf24,#fb923c)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Platform</span>
+                  </h1>
+                  <p style={{fontSize:16,lineHeight:1.7,color:"rgba(255,255,255,.8)",maxWidth:560,marginBottom:32}}>
+                    Access lecture slides, notes, past questions, quizzes, flashcards, study timer & forums. Pay securely via Flutterwave or Paystack.
+                  </p>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
+                    <button onClick={()=>nav("library")} style={{display:"flex",alignItems:"center",gap:8,padding:"14px 28px",borderRadius:99,background:"white",color:"#4338ca",border:"none",cursor:"pointer",fontSize:14,fontWeight:700,boxShadow:"0 8px 24px rgba(0,0,0,.15)"}}>
+                      <Ic n="book" s={16}/> Explore Library
+                    </button>
+                    <button onClick={()=>nav("pricing")} style={{display:"flex",alignItems:"center",gap:8,padding:"14px 28px",borderRadius:99,border:"2px solid rgba(255,255,255,.3)",background:"rgba(255,255,255,.1)",color:"white",cursor:"pointer",fontSize:14,fontWeight:700}}>
+                      💳 Get Premium
+                    </button>
+                    {!user&&<button onClick={()=>setShowAuth(true)} style={{display:"flex",alignItems:"center",gap:8,padding:"14px 28px",borderRadius:99,border:"2px solid rgba(255,255,255,.3)",background:"rgba(255,255,255,.1)",color:"white",cursor:"pointer",fontSize:14,fontWeight:700}}><Ic n="user" s={16}/> Join Free</button>}
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                  {qStats.map(s=>(
+                    <div key={s.label} style={{borderRadius:"1rem",border:"1px solid rgba(255,255,255,.15)",background:"rgba(255,255,255,.1)",padding:20,backdropFilter:"blur(10px)",textAlign:"center"}}>
+                      <div style={{fontSize:32,marginBottom:8}}>{s.icon}</div>
+                      <div style={{fontSize:24,fontWeight:800}}>{s.value}</div>
+                      <div style={{fontSize:12,color:"rgba(255,255,255,.7)",marginTop:4}}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Payment banner */}
+            <div style={{borderRadius:"2rem",background:"linear-gradient(135deg,#f97316,#f59e0b)",padding:"28px 36px",color:"white",display:"flex",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between",gap:20,boxShadow:"0 16px 40px rgba(249,115,22,.25)"}}>
+              <div>
+                <h3 style={{fontSize:20,fontWeight:800,margin:"0 0 8px"}}>💳 Secure Payments — Flutterwave & Paystack</h3>
+                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  {[`🦋 Merchant: ${CONFIG.FLUTTERWAVE_MERCHANT_ID}`,"📱 MTN MoMo",`📱 Telecel ${CONFIG.OWNER_TELECEL}`,"💳 Visa/MC"].map(m=>(
+                    <span key={m} style={{background:"rgba(255,255,255,.2)",borderRadius:99,padding:"4px 12px",fontSize:12,fontWeight:600}}>{m}</span>
+                  ))}
+                </div>
+              </div>
+              <button onClick={()=>nav("pricing")} style={{padding:"14px 28px",borderRadius:99,background:"white",color:"#c2410c",border:"none",cursor:"pointer",fontSize:14,fontWeight:700,boxShadow:"0 4px 16px rgba(0,0,0,.15)",whiteSpace:"nowrap"}}>
+                Subscribe Now →
+              </button>
+            </div>
+
+            {/* Features */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:20}}>
+              {[
+                {icon:"📚",title:"Resource Library",desc:"Slides, notes, past questions & textbooks by course."},
+                {icon:"🧠",title:"Interactive Quizzes",desc:"Timed CBT practice with instant scoring & XP."},
+                {icon:"🃏",title:"Flashcards",desc:"Flip-to-reveal cards for rapid revision."},
+                {icon:"⏱️",title:"Study Timer",desc:"Pomodoro sessions with break reminders."},
+                {icon:"💬",title:"Discussion Forum",desc:"Collaborate with 65,000+ students."},
+                {icon:"🏆",title:"Leaderboard & XP",desc:"Earn XP, climb ranks, collect badges."},
+                {icon:"🦋",title:"Secure Payments",desc:`Flutterwave Merchant ${CONFIG.FLUTTERWAVE_MERCHANT_ID} · Paystack · MoMo · Telecel`},
+                {icon:"🛠️",title:"Admin Dashboard",desc:"Upload & manage study materials."},
+              ].map(f=>(
+                <div key={f.title} className="card-hover" style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:24,background:dm?"#111827":"white"}}>
+                  <div style={{width:56,height:56,borderRadius:16,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,marginBottom:16}}>{f.icon}</div>
+                  <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>{f.title}</h3>
+                  <p style={{fontSize:13,lineHeight:1.6,color:ts,margin:0}}>{f.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Testimonials */}
+            <div style={{borderRadius:"2.5rem",background:dm?"#111827":"#0f172a",padding:48,color:"white"}}>
+              <div style={{textAlign:"center",marginBottom:40}}>
+                <p style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.15em",color:"#818cf8",marginBottom:8}}>What students say</p>
+                <h2 style={{fontSize:32,fontWeight:800,margin:0}}>Loved by thousands</h2>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:20}}>
+                {testimonials.map(t=>(
+                  <div key={t.name} style={{borderRadius:"1rem",border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",padding:24}}>
+                    <div style={{fontSize:36,marginBottom:16}}>{t.avatar}</div>
+                    <p style={{fontSize:13,lineHeight:1.7,color:"rgba(255,255,255,.8)",marginBottom:16}}>"{t.quote}"</p>
+                    <div style={{fontWeight:700}}>{t.name}</div>
+                    <div style={{fontSize:12,color:"rgba(255,255,255,.5)"}}>{t.role}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div style={{borderRadius:"2.5rem",background:"linear-gradient(135deg,#f59e0b,#f97316,#f43f5e)",padding:48,color:"white",textAlign:"center"}}>
+              <h2 style={{fontSize:36,fontWeight:900,marginBottom:16}}>Ready to ace your exams?</h2>
+              <p style={{fontSize:16,color:"rgba(255,255,255,.85)",maxWidth:520,margin:"0 auto 32px"}}>Join Study Smart — pay securely via Flutterwave or Paystack.</p>
+              <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:12}}>
+                <button onClick={()=>{if(!user)setShowAuth(true);else nav("library");}} style={{padding:"16px 32px",borderRadius:99,background:"white",color:"#c2410c",border:"none",cursor:"pointer",fontSize:14,fontWeight:700}}>Get Started Free</button>
+                <button onClick={()=>nav("pricing")} style={{padding:"16px 32px",borderRadius:99,border:"2px solid rgba(255,255,255,.3)",background:"rgba(255,255,255,.1)",color:"white",cursor:"pointer",fontSize:14,fontWeight:700}}>View Plans & Pay</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ LIBRARY ══ */}
+        {sec==="library"&&(
+          <div className="fade-enter" style={{display:"flex",flexDirection:"column",gap:24}}>
+            <div style={{display:"flex",flexWrap:"wrap",alignItems:"flex-end",justifyContent:"space-between",gap:16}}>
+              <div>
+                <p style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#6366f1",marginBottom:4}}>📚 Resource Library</p>
+                <h2 style={{fontSize:28,fontWeight:800,margin:"0 0 8px"}}>Browse study materials</h2>
+                <p style={{fontSize:13,color:ts,margin:0}}>{res.length} resources · {res.filter(r=>r.access==="Free").length} free · {res.filter(r=>r.access==="Premium").length} premium</p>
+              </div>
+              <div style={{position:"relative",width:"100%",maxWidth:400}}>
+                <span style={{position:"absolute",left:16,top:"50%",transform:"translateY(-50%)",color:"#94a3b8"}}><Ic n="search" s={16}/></span>
+                <input type="text" value={srch} onChange={e=>setSrch(e.target.value)} placeholder="Search resources..."
+                  style={{width:"100%",borderRadius:"1rem",border:"1px solid",borderColor:dm?"#374151":"#e2e8f0",padding:"12px 16px 12px 44px",fontSize:13,outline:"none",background:dm?"#1f2937":"#f8fafc",color:dm?"white":"#1e293b"}}/>
+              </div>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {cats.map(c=><button key={c} onClick={()=>setCat(c)} style={{padding:"8px 18px",borderRadius:99,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:cat===c?"#4f46e5":dm?"#1f2937":"#f1f5f9",color:cat===c?"white":ts,transition:"all .2s"}}>{c}</button>)}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:20}}>
+              {filtered.map(r=>(
+                <div key={r.id} className="card-hover" style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:24,background:dm?"#111827":"white"}}>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:16}}>
+                    <span style={{borderRadius:99,background:"#eef2ff",color:"#4338ca",padding:"4px 12px",fontSize:12,fontWeight:700}}>{r.category}</span>
+                    <span style={{borderRadius:99,background:r.access==="Premium"?"#fef3c7":"#ecfdf5",color:r.access==="Premium"?"#b45309":"#059669",padding:"4px 12px",fontSize:12,fontWeight:700}}>{r.access}</span>
+                    <span style={{borderRadius:99,background:dm?"#1f2937":"#f8fafc",color:ts,padding:"4px 12px",fontSize:12}}>{r.level}</span>
+                  </div>
+                  <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>{r.title}</h3>
+                  <p style={{fontSize:13,lineHeight:1.6,color:ts,marginBottom:16}}>{r.description}</p>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,borderRadius:12,background:dm?"#1f2937":"#f8fafc",padding:12,marginBottom:12}}>
+                    {[{l:"Course",v:r.course},{l:"Period",v:r.week},{l:"Pages",v:r.pages},{l:"Rating",v:r.rating||"New"}].map(s=>(
+                      <div key={s.l}><div style={{fontSize:10,textTransform:"uppercase",color:ts,marginBottom:2}}>{s.l}</div><div style={{fontSize:12,fontWeight:700}}>{s.v}</div></div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <div style={{fontSize:12,color:ts,display:"flex",gap:12}}>
+                      <span style={{display:"flex",alignItems:"center",gap:4}}><Ic n="download" s={12}/>{r.downloads.toLocaleString()}</span>
+                      <span>{r.dateAdded}</span>
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>bm(r.id)} style={{padding:8,borderRadius:99,border:"none",cursor:"pointer",background:bmarks.includes(r.id)?"#fef3c7":dm?"#1f2937":"#f1f5f9",color:bmarks.includes(r.id)?"#d97706":ts}}><Ic n="bookmark" s={14}/></button>
+                      {r.access==="Premium"&&!user?.isPremium
+                        ?<button onClick={()=>nav("pricing")} style={{padding:"8px 16px",borderRadius:99,background:"linear-gradient(135deg,#f59e0b,#f97316)",color:"white",border:"none",cursor:"pointer",fontSize:12,fontWeight:700}}>👑 Unlock</button>
+                        :<button style={{display:"flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:99,background:"#4f46e5",color:"white",border:"none",cursor:"pointer",fontSize:12,fontWeight:700}}>Open <Ic n="chevron" s={12}/></button>
+                      }
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {filtered.length===0&&(
+              <div style={{borderRadius:"1.5rem",border:"2px dashed",borderColor:dm?"#374151":"#cbd5e1",padding:64,textAlign:"center"}}>
+                <div style={{fontSize:48,marginBottom:16}}>🔍</div>
+                <h3 style={{fontSize:20,fontWeight:700}}>No materials found</h3>
+                <p style={{color:ts}}>Try a different search or category.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ QUIZZES ══ */}
+        {sec==="quizzes"&&(
+          <div className="fade-enter" style={{display:"flex",flexDirection:"column",gap:24}}>
+            <div>
+              <p style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#7c3aed",marginBottom:4}}>🧠 Quiz Center</p>
+              <h2 style={{fontSize:28,fontWeight:800,margin:"0 0 8px"}}>Practice & test your knowledge</h2>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:20}}>
+              {quizData.map(q=>(
+                <div key={q.id} className="card-hover" style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:24,background:dm?"#111827":"white"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                    <span style={{fontSize:12,fontWeight:700,color:"#7c3aed"}}>{q.course}</span>
+                    <span style={{padding:"3px 10px",borderRadius:99,fontSize:11,fontWeight:700,background:q.difficulty==="Beginner"?"#ecfdf5":q.difficulty==="Intermediate"?"#fef3c7":"#fef2f2",color:q.difficulty==="Beginner"?"#059669":q.difficulty==="Intermediate"?"#d97706":"#dc2626"}}>{q.difficulty}</span>
+                  </div>
+                  <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>{q.title}</h3>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,borderRadius:12,background:dm?"#1f2937":"#f8fafc",padding:12,textAlign:"center",marginBottom:20}}>
+                    {[{l:"Qs",v:q.questions.length},{l:"Time",v:`${q.duration}m`},{l:"Taken",v:`${(q.participants/1000).toFixed(1)}k`}].map(s=>(
+                      <div key={s.l}><div style={{fontSize:10,textTransform:"uppercase",color:ts}}>{s.l}</div><div style={{fontSize:14,fontWeight:700}}>{s.v}</div></div>
+                    ))}
+                  </div>
+                  <button onClick={()=>startQuiz(q)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:12,borderRadius:12,background:"linear-gradient(135deg,#7c3aed,#a855f7)",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:700}}>
+                    <Ic n="target" s={14}/> Start Quiz
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ══ QUIZ ACTIVE ══ */}
+        {sec==="quiz-active"&&quiz&&(
+          <div className="fade-enter" style={{maxWidth:720,margin:"0 auto",display:"flex",flexDirection:"column",gap:24}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+              <div><h2 style={{fontSize:24,fontWeight:800,margin:"0 0 4px"}}>{quiz.title}</h2><p style={{fontSize:13,color:ts,margin:0}}>{quiz.course} · {quiz.difficulty}</p></div>
+              <div style={{padding:"12px 20px",borderRadius:12,fontFamily:"monospace",fontSize:20,fontWeight:700,background:tLeft<60?"#fef2f2":dm?"#1f2937":"#f8fafc",color:tLeft<60?"#dc2626":dm?"white":"#1e293b"}} className={tLeft<60?"timer-pulse":""}>⏱ {fmt(tLeft)}</div>
+            </div>
+            {!subm?(
+              <>
+                {quiz.questions.map((q,qi)=>(
+                  <div key={q.id} style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:24,background:dm?"#111827":"white"}}>
+                    <p style={{fontWeight:700,fontSize:15,marginBottom:16}}><span style={{color:"#6366f1",marginRight:8}}>Q{qi+1}.</span>{q.question}</p>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                      {q.options.map((opt,oi)=>(
+                        <button key={oi} onClick={()=>setAns({...ans,[q.id]:oi})}
+                          style={{padding:14,borderRadius:12,border:"2px solid",borderColor:ans[q.id]===oi?"#4f46e5":dm?"#374151":"#e2e8f0",background:ans[q.id]===oi?"#eef2ff":"transparent",color:ans[q.id]===oi?"#4338ca":dm?"#e5e7eb":"#1e293b",textAlign:"left",cursor:"pointer",fontSize:13,fontWeight:500,display:"flex",alignItems:"center",gap:10,transition:"all .2s"}}>
+                          <span style={{width:24,height:24,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,background:ans[q.id]===oi?"#4f46e5":dm?"#374151":"#e2e8f0",color:ans[q.id]===oi?"white":ts,flexShrink:0}}>{String.fromCharCode(65+oi)}</span>
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <button onClick={submitQuiz} style={{width:"100%",padding:16,borderRadius:16,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"white",border:"none",cursor:"pointer",fontSize:14,fontWeight:700}}>Submit Quiz</button>
+              </>
+            ):(
+              <>
+                {(()=>{const sc=quiz.questions.filter(q=>ans[q.id]===q.correctIndex).length;const pct=Math.round((sc/quiz.questions.length)*100);return(
+                  <div style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:32,background:dm?"#111827":"white",textAlign:"center"}}>
+                    <div style={{fontSize:56,marginBottom:16}}>{pct>=80?"🏆":pct>=50?"👍":"📖"}</div>
+                    <h3 style={{fontSize:36,fontWeight:900,margin:"0 0 8px"}}>{sc}/{quiz.questions.length}</h3>
+                    <p style={{fontSize:16,color:ts,marginBottom:16}}>You scored {pct}%</p>
+                    <div style={{width:"100%",background:dm?"#374151":"#e2e8f0",borderRadius:99,height:12,overflow:"hidden",marginBottom:8}}>
+                      <div className="progress-bar" style={{height:"100%",width:`${pct}%`,borderRadius:99,background:pct>=80?"#10b981":pct>=50?"#f59e0b":"#ef4444"}}/>
+                    </div>
+                    <p style={{fontSize:14,fontWeight:700,color:"#6366f1"}}>+{sc*20} XP earned!</p>
+                  </div>
+                );})()}
+                {quiz.questions.map((q,qi)=>{const ok=ans[q.id]===q.correctIndex;return(
+                  <div key={q.id} style={{borderRadius:"1.5rem",border:"2px solid",borderColor:ok?"#a7f3d0":"#fca5a5",background:ok?"rgba(236,253,245,.5)":"rgba(254,242,242,.5)",padding:24}}>
+                    <p style={{fontWeight:700,marginBottom:12}}>{ok?"✅":"❌"} Q{qi+1}. {q.question}</p>
+                    <p style={{fontSize:13,marginBottom:4}}><strong>Your answer:</strong> {q.options[ans[q.id]]||"Not answered"}</p>
+                    {!ok&&<p style={{fontSize:13,color:"#059669"}}><strong>Correct:</strong> {q.options[q.correctIndex]}</p>}
+                    <p style={{fontSize:13,color:"#4338ca",background:"rgba(99,102,241,.08)",borderRadius:12,padding:12,marginTop:8}}>💡 {q.explanation}</p>
+                  </div>
+                );})}
+                <div style={{display:"flex",gap:12}}>
+                  <button onClick={()=>startQuiz(quiz)} style={{flex:1,padding:14,borderRadius:16,background:"#4f46e5",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:700}}>Retake</button>
+                  <button onClick={()=>nav("quizzes")} style={{flex:1,padding:14,borderRadius:16,border:"1px solid",borderColor:dm?"#374151":"#e2e8f0",background:"transparent",color:dm?"white":"#1e293b",cursor:"pointer",fontSize:13,fontWeight:700}}>Back to Quizzes</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ══ FLASHCARDS ══ */}
+        {sec==="flashcards"&&(
+          <div className="fade-enter" style={{maxWidth:600,margin:"0 auto",display:"flex",flexDirection:"column",gap:24}}>
+            <div style={{textAlign:"center"}}>
+              <p style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#a855f7",marginBottom:4}}>🃏 Flashcards</p>
+              <h2 style={{fontSize:28,fontWeight:800,margin:"0 0 8px"}}>Quick revision cards</h2>
+              <p style={{fontSize:13,color:ts,margin:0}}>Card {fcI+1} of {fcList.length} · Click to flip</p>
+            </div>
+            <div className="flip-card" onClick={()=>setFcFlip(!fcFlip)} style={{cursor:"pointer"}}>
+              <div className={`flip-inner${fcFlip?" flipped":""}`}>
+                <div className="flip-front" style={{background:"linear-gradient(135deg,#4f46e5,#7c3aed,#a855f7)",color:"white"}}>
+                  <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:"0.12em",opacity:.6,marginBottom:16}}>{fcList[fcI]?.course}</div>
+                  <p style={{fontSize:20,fontWeight:700,lineHeight:1.5,margin:0}}>{fcList[fcI]?.front}</p>
+                  <p style={{fontSize:12,opacity:.5,marginTop:24}}>Tap to reveal answer</p>
+                </div>
+                <div className="flip-back" style={{background:"linear-gradient(135deg,#059669,#0d9488,#0891b2)",color:"white"}}>
+                  <div style={{fontSize:11,textTransform:"uppercase",letterSpacing:"0.12em",opacity:.6,marginBottom:16}}>Answer</div>
+                  <p style={{fontSize:17,fontWeight:700,lineHeight:1.6,margin:0}}>{fcList[fcI]?.back}</p>
+                </div>
+              </div>
+            </div>
+            <div style={{display:"flex",justifyContent:"center",gap:12,flexWrap:"wrap"}}>
+              <button onClick={()=>{setFcI(p=>Math.max(0,p-1));setFcFlip(false);}} style={{padding:"12px 24px",borderRadius:99,border:"none",cursor:"pointer",background:dm?"#1f2937":"#f1f5f9",color:dm?"#e5e7eb":"#1e293b",fontSize:13,fontWeight:700}}>← Prev</button>
+              <button onClick={()=>{const u=[...fcList];u[fcI]={...u[fcI],mastered:!u[fcI].mastered};setFcList(u);toast(u[fcI].mastered?"🌟 Mastered!":"Unmarked");}}
+                style={{padding:"12px 24px",borderRadius:99,border:"none",cursor:"pointer",background:fcList[fcI]?.mastered?"#059669":dm?"#1f2937":"#f1f5f9",color:fcList[fcI]?.mastered?"white":dm?"#e5e7eb":"#1e293b",fontSize:13,fontWeight:700}}>
+                {fcList[fcI]?.mastered?"✓ Mastered":"Mark Mastered"}
+              </button>
+              <button onClick={()=>{setFcI(p=>Math.min(fcList.length-1,p+1));setFcFlip(false);}} style={{padding:"12px 24px",borderRadius:99,border:"none",cursor:"pointer",background:dm?"#1f2937":"#f1f5f9",color:dm?"#e5e7eb":"#1e293b",fontSize:13,fontWeight:700}}>Next →</button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center"}}>
+              {fcList.map((f,i)=><button key={f.id} onClick={()=>{setFcI(i);setFcFlip(false);}} style={{width:40,height:40,borderRadius:12,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,background:i===fcI?"#4f46e5":f.mastered?"#d1fae5":dm?"#1f2937":"#f1f5f9",color:i===fcI?"white":f.mastered?"#059669":ts}}>{i+1}</button>)}
+            </div>
+            <div style={{borderRadius:12,background:dm?"#1f2937":"#f8fafc",padding:16,textAlign:"center"}}>
+              <span style={{fontWeight:700,color:"#059669"}}>{fcList.filter(f=>f.mastered).length}</span>
+              <span style={{fontSize:13,color:ts}}> / {fcList.length} mastered</span>
+            </div>
+          </div>
+        )}
+
+        {/* ══ FORUM ══ */}
+        {sec==="forum"&&(
+          <div className="fade-enter" style={{display:"flex",flexDirection:"column",gap:24}}>
+            <div>
+              <p style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#06b6d4",marginBottom:4}}>💬 Discussion Forum</p>
+              <h2 style={{fontSize:28,fontWeight:800,margin:"0 0 8px"}}>Ask, share & collaborate</h2>
+            </div>
+            <div style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:24,background:dm?"#111827":"white"}}>
+              <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>Start a new discussion</h3>
+              <form onSubmit={handlePost} style={{display:"flex",flexDirection:"column",gap:12}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  <input type="text" required value={postF.title} onChange={e=>setPostF({...postF,title:e.target.value})} placeholder="Discussion title" className={ic}/>
+                  <input type="text" value={postF.course} onChange={e=>setPostF({...postF,course:e.target.value})} placeholder="Course" className={ic}/>
+                </div>
+                <textarea required rows={3} value={postF.content} onChange={e=>setPostF({...postF,content:e.target.value})} placeholder="What's on your mind?" className={ic} style={{resize:"vertical"}}/>
+                <div style={{display:"flex",gap:12}}>
+                  <input type="text" value={postF.tags} onChange={e=>setPostF({...postF,tags:e.target.value})} placeholder="Tags (comma-separated)" className={ic} style={{flex:1}}/>
+                  <button type="submit" style={{padding:"12px 24px",borderRadius:16,background:"#4f46e5",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,whiteSpace:"nowrap"}}>Post</button>
+                </div>
+              </form>
+            </div>
+            {forum.map(post=>(
+              <div key={post.id} className="card-hover" style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:24,background:dm?"#111827":"white"}}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:16}}>
+                  <div style={{fontSize:32}}>{post.avatar}</div>
+                  <div style={{flex:1}}>
+                    <h3 style={{fontSize:16,fontWeight:700,marginBottom:4}}>{post.title}</h3>
+                    <p style={{fontSize:12,color:ts,marginBottom:12}}>{post.author} · {post.course} · {post.timestamp}</p>
+                    <p style={{fontSize:13,lineHeight:1.6,color:ts,marginBottom:12}}>{post.content}</p>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+                      {post.tags.map(t=><span key={t} style={{borderRadius:99,background:"#eef2ff",color:"#4338ca",padding:"3px 12px",fontSize:11,fontWeight:700}}>#{t}</span>)}
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:20}}>
+                      <button onClick={()=>setForum(p=>p.map(pp=>pp.id===post.id?{...pp,likes:pp.likes+1}:pp))} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",cursor:"pointer",fontSize:13,color:ts}}>❤️ {post.likes}</button>
+                      <span style={{fontSize:13,color:ts}}>💬 {post.replies} replies</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ══ LEADERBOARD ══ */}
+        {sec==="leaderboard"&&(
+          <div className="fade-enter" style={{maxWidth:720,margin:"0 auto",display:"flex",flexDirection:"column",gap:24}}>
+            <div style={{textAlign:"center"}}>
+              <p style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#f59e0b",marginBottom:4}}>🏆 Leaderboard</p>
+              <h2 style={{fontSize:28,fontWeight:800,margin:"0 0 8px"}}>Top performers this month</h2>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+              {lbData.slice(0,3).map((e,i)=>(
+                <div key={e.rank} style={{borderRadius:"1.5rem",border:"1px solid",borderColor:i===0?"#fcd34d":i===1?"#cbd5e1":"#fed7aa",background:i===0?"linear-gradient(to bottom,#fffbeb,#fef3c7)":i===1?"linear-gradient(to bottom,#f8fafc,#f1f5f9)":"linear-gradient(to bottom,#fff7ed,#ffedd5)",padding:24,textAlign:"center",marginTop:i===0?-16:0}}>
+                  <div style={{fontSize:36,marginBottom:8}}>{e.avatar}</div>
+                  <div style={{fontWeight:700,fontSize:14}}>{e.name}</div>
+                  <div style={{fontSize:11,color:"#94a3b8",marginBottom:12}}>{e.school}</div>
+                  <div style={{fontSize:24,fontWeight:900,color:"#4f46e5"}}>{e.xp.toLocaleString()}</div>
+                  <div style={{fontSize:10,color:"#94a3b8"}}>XP</div>
+                  <div style={{marginTop:12,fontSize:11,color:"#94a3b8",display:"flex",justifyContent:"center",gap:12}}><span>🧠 {e.quizzes}</span><span>🔥 {e.streak}d</span></div>
+                </div>
+              ))}
+            </div>
+            <div style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",overflow:"hidden",background:dm?"#111827":"white"}}>
+              {lbData.slice(3).map((e,i)=>(
+                <div key={e.rank} style={{display:"flex",alignItems:"center",gap:16,padding:"16px 20px",borderBottom:i<3?"1px solid":"none",borderColor:dm?"#1f2937":"#f1f5f9"}}>
+                  <div style={{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,background:dm?"#1f2937":"#f1f5f9",color:ts}}>{e.rank}</div>
+                  <div style={{fontSize:24}}>{e.avatar}</div>
+                  <div style={{flex:1}}><div style={{fontWeight:700,fontSize:14}}>{e.name}</div><div style={{fontSize:12,color:ts}}>{e.school}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontWeight:700,color:"#4f46e5"}}>{e.xp.toLocaleString()} XP</div><div style={{fontSize:12,color:ts}}>{e.quizzes} quizzes · {e.streak}d streak</div></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ══ STUDY TIMER ══ */}
+        {sec==="studytimer"&&(
+          <div className="fade-enter" style={{maxWidth:480,margin:"0 auto",display:"flex",flexDirection:"column",gap:24,textAlign:"center"}}>
+            <div>
+              <p style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#10b981",marginBottom:4}}>⏱️ Study Timer</p>
+              <h2 style={{fontSize:28,fontWeight:800,margin:"0 0 8px"}}>Pomodoro Focus Session</h2>
+              <p style={{fontSize:13,color:ts,margin:0}}>25 minutes focus, 5 minutes break. Stay productive!</p>
+            </div>
+            <div style={{borderRadius:"3rem",padding:48,background:tmrMode==="focus"?"linear-gradient(135deg,#4f46e5,#7c3aed,#a855f7)":"linear-gradient(135deg,#10b981,#0d9488,#0891b2)",color:"white",boxShadow:"0 20px 50px rgba(0,0,0,.2)"}}>
+              <div style={{fontSize:12,textTransform:"uppercase",letterSpacing:"0.15em",opacity:.6,marginBottom:16}}>{tmrMode==="focus"?"🎯 Focus Time":"☕ Break Time"}</div>
+              <div style={{fontFamily:"monospace",fontSize:72,fontWeight:900,letterSpacing:"0.05em",lineHeight:1}}>{fmt(tmrSec)}</div>
+              <div style={{display:"flex",justifyContent:"center",gap:12,marginTop:32}}>
+                <button onClick={()=>setTmrRun(!tmrRun)} style={{padding:"12px 32px",borderRadius:99,background:"rgba(255,255,255,.2)",border:"1px solid rgba(255,255,255,.3)",color:"white",cursor:"pointer",fontSize:13,fontWeight:700}}>{tmrRun?"⏸ Pause":"▶ Start"}</button>
+                <button onClick={()=>{setTmrRun(false);setTmrSec(tmrMode==="focus"?25*60:5*60);}} style={{padding:"12px 32px",borderRadius:99,background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",color:"white",cursor:"pointer",fontSize:13,fontWeight:700}}>↺ Reset</button>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {[{m:"focus",l:"🎯 Focus (25 min)",c:"#4f46e5"},{m:"break",l:"☕ Break (5 min)",c:"#10b981"}].map(x=>(
+                <button key={x.m} onClick={()=>{setTmrMode(x.m);setTmrSec(x.m==="focus"?25*60:5*60);setTmrRun(false);}}
+                  style={{padding:16,borderRadius:16,border:"2px solid",borderColor:tmrMode===x.m?x.c:dm?"#374151":"#e2e8f0",background:tmrMode===x.m?x.m==="focus"?"#eef2ff":"#ecfdf5":"transparent",color:tmrMode===x.m?x.c:ts,cursor:"pointer",fontSize:14,fontWeight:700}}>
+                  {x.l}
+                </button>
+              ))}
+            </div>
+            <div style={{borderRadius:16,background:dm?"#1f2937":"#f8fafc",padding:24,textAlign:"left"}}>
+              <h3 style={{fontWeight:700,marginBottom:12}}>💡 Study Tips</h3>
+              <ul style={{fontSize:13,color:ts,listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:8}}>
+                <li>• Close all social media tabs during focus sessions</li>
+                <li>• Use flashcards during your 5-minute breaks</li>
+                <li>• After 4 sessions, take a longer 15–30 minute break</li>
+                <li>• Stay hydrated — keep water at your desk</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* ══ PRICING ══ */}
+        {sec==="pricing"&&<PricingSection dm={dm} user={user} setUser={setUser} toast={toast} nav={nav}/>}
+
+        {/* ══ ADMIN ══ */}
+        {sec==="admin"&&(
+          <div className="fade-enter">
+            {(!user||user.role!=="Admin")?(
+              <div style={{maxWidth:480,margin:"0 auto",display:"flex",flexDirection:"column",gap:24,paddingTop:48}}>
+                <div style={{textAlign:"center"}}>
+                  <div style={{width:80,height:80,borderRadius:"50%",background:"linear-gradient(135deg,#f43f5e,#f97316)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,margin:"0 auto 24px"}}>🔒</div>
+                  <h2 style={{fontSize:28,fontWeight:800,marginBottom:12}}>Admin Access Only</h2>
+                  <p style={{fontSize:13,color:ts}}>Sign in with your authorized admin email to access the dashboard.</p>
+                </div>
+                <div style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:32,background:dm?"#111827":"white"}}>
+                  <form onSubmit={handleAdminLogin} style={{display:"flex",flexDirection:"column",gap:12}}>
+                    <input type="email" required value={adminF.email} onChange={e=>setAdminF({...adminF,email:e.target.value})} placeholder="Admin email" className={ic}/>
+                    <input type="password" required value={adminF.password} onChange={e=>setAdminF({...adminF,password:e.target.value})} placeholder="Password" className={ic}/>
+                    <input type="text" required value={adminF.code} onChange={e=>setAdminF({...adminF,code:e.target.value})} placeholder="Access code" className={ic}/>
+                    <button type="submit" style={{width:"100%",padding:14,borderRadius:12,background:"linear-gradient(135deg,#f43f5e,#f97316)",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:700}}>🛡️ Access Admin Dashboard</button>
+                  </form>
+                </div>
+                <div style={{borderRadius:12,background:dm?"#1f2937":"#f8fafc",padding:16,textAlign:"center",fontSize:13,color:ts}}>
+                  💡 Not an admin? <button onClick={()=>nav("home")} style={{background:"none",border:"none",cursor:"pointer",color:"#6366f1",fontWeight:600}}>Go back to Home</button>
+                </div>
+              </div>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:24}}>
+                <div>
+                  <p style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.12em",color:"#06b6d4",marginBottom:4}}>🛠️ Admin Dashboard</p>
+                  <h2 style={{fontSize:28,fontWeight:800,margin:"0 0 8px"}}>Manage & upload resources</h2>
+                  <span style={{display:"inline-flex",alignItems:"center",gap:8,borderRadius:99,padding:"6px 16px",fontSize:12,fontWeight:700,background:dm?"rgba(16,185,129,.1)":"#ecfdf5",color:"#059669"}}>🛡️ Signed in as: {user.email}</span>
+                </div>
+
+                {/* Payment config card */}
+                <div style={{borderRadius:"1.5rem",background:"linear-gradient(135deg,#f97316,#f59e0b)",padding:24,color:"white"}}>
+                  <h3 style={{fontSize:16,fontWeight:800,margin:"0 0 16px"}}>💳 Your Payment Configuration</h3>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                    {[{l:"🦋 Flutterwave Merchant ID",v:CONFIG.FLUTTERWAVE_MERCHANT_ID},{l:"📱 Telecel Cash Number",v:CONFIG.OWNER_TELECEL}].map(x=>(
+                      <div key={x.l} style={{background:"rgba(255,255,255,.15)",borderRadius:12,padding:16,backdropFilter:"blur(10px)"}}>
+                        <div style={{fontSize:11,opacity:.7,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.08em"}}>{x.l}</div>
+                        <div style={{fontFamily:"monospace",fontSize:20,fontWeight:900,letterSpacing:"0.1em"}}>{x.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{fontSize:12,opacity:.85,marginTop:12}}>All payments via Flutterwave & Paystack settle directly to your registered account. Update API keys in the CONFIG section at the top of this file.</p>
+                </div>
+
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1.2fr",gap:24}}>
+                  <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                      {[{l:"Total Resources",v:res.length,e:"📚",c:"#4f46e5"},{l:"Downloads",v:res.reduce((a,r)=>a+r.downloads,0).toLocaleString(),e:"📥",c:"#10b981"},{l:"Premium",v:res.filter(r=>r.access==="Premium").length,e:"⭐",c:"#f59e0b"},{l:"Free",v:res.filter(r=>r.access==="Free").length,e:"🌐",c:"#06b6d4"}].map(s=>(
+                        <div key={s.l} style={{borderRadius:16,border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:20,background:dm?"#111827":"white"}}>
+                          <div style={{fontSize:24,marginBottom:8}}>{s.e}</div>
+                          <div style={{fontSize:24,fontWeight:800,color:s.c}}>{s.v}</div>
+                          <div style={{fontSize:12,color:ts}}>{s.l}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:24,background:dm?"#111827":"white"}}>
+                      <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>📋 Recent Uploads</h3>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        {res.slice(0,5).map(r=>(
+                          <div key={r.id} style={{display:"flex",alignItems:"center",gap:12,borderRadius:12,padding:12,background:dm?"#1f2937":"#f8fafc"}}>
+                            <div style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,background:r.access==="Premium"?"#fef3c7":"#ecfdf5",color:r.access==="Premium"?"#b45309":"#059669",flexShrink:0}}>{r.category.charAt(0)}</div>
+                            <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.title}</div><div style={{fontSize:11,color:ts}}>{r.dateAdded}</div></div>
+                            <button onClick={()=>setRes(p=>p.filter(rr=>rr.id!==r.id))} style={{padding:6,borderRadius:8,background:"none",border:"none",cursor:"pointer",color:"#ef4444"}}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{borderRadius:"1.5rem",background:dm?"#111827":"#0f172a",padding:32,border:"1px solid",borderColor:dm?"#1f2937":"#1e293b"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
+                      <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#22d3ee,#6366f1)",display:"flex",alignItems:"center",justifyContent:"center",color:"white"}}><Ic n="upload" s={18}/></div>
+                      <div><h3 style={{fontSize:18,fontWeight:700,color:"white",margin:0}}>Upload New Resource</h3><p style={{fontSize:12,color:"rgba(255,255,255,.4)",margin:0}}>Publish instantly to the library</p></div>
+                    </div>
+                    <form onSubmit={handleUpload} style={{display:"flex",flexDirection:"column",gap:12}}>
+                      {[{ph:"Resource title",key:"title",req:true},{ph:"Course / Department",key:"course",req:true},{ph:"Level (100, 200...)",key:"level",req:true}].map(f=>(
+                        <input key={f.key} type="text" required={f.req} value={upF[f.key]} onChange={e=>setUpF({...upF,[f.key]:e.target.value})} placeholder={f.ph}
+                          style={{width:"100%",borderRadius:12,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",padding:"12px 16px",fontSize:13,color:"white",outline:"none"}}/>
+                      ))}
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+                        <select value={upF.category} onChange={e=>setUpF({...upF,category:e.target.value})} style={{borderRadius:12,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",padding:"12px 16px",fontSize:13,color:"white",outline:"none"}}>
+                          <option>Slides</option><option>Lecture Notes</option><option>Past Questions</option><option>Textbooks</option><option>Lab Reports</option>
+                        </select>
+                        <select value={upF.access} onChange={e=>setUpF({...upF,access:e.target.value})} style={{borderRadius:12,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",padding:"12px 16px",fontSize:13,color:"white",outline:"none"}}>
+                          <option>Free</option><option>Premium</option>
+                        </select>
+                        <input value={upF.format} onChange={e=>setUpF({...upF,format:e.target.value})} placeholder="PDF/DOCX" style={{borderRadius:12,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",padding:"12px 16px",fontSize:13,color:"white",outline:"none"}}/>
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                        <input value={upF.week} onChange={e=>setUpF({...upF,week:e.target.value})} placeholder="Week/year" style={{borderRadius:12,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",padding:"12px 16px",fontSize:13,color:"white",outline:"none"}}/>
+                        <input type="number" value={upF.pages} onChange={e=>setUpF({...upF,pages:e.target.value})} placeholder="Pages" style={{borderRadius:12,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",padding:"12px 16px",fontSize:13,color:"white",outline:"none"}}/>
+                      </div>
+                      <textarea required rows={3} value={upF.description} onChange={e=>setUpF({...upF,description:e.target.value})} placeholder="Describe the resource" style={{borderRadius:12,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",padding:"12px 16px",fontSize:13,color:"white",outline:"none",resize:"vertical"}}/>
+                      <input value={upF.tags} onChange={e=>setUpF({...upF,tags:e.target.value})} placeholder="Tags (comma-separated)" style={{borderRadius:12,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.05)",padding:"12px 16px",fontSize:13,color:"white",outline:"none"}}/>
+                      <button type="submit" style={{width:"100%",padding:14,borderRadius:12,background:"linear-gradient(135deg,#22d3ee,#6366f1)",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                        <Ic n="upload" s={16}/> Publish to Library
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ PROFILE ══ */}
+        {sec==="profile"&&user&&(
+          <div className="fade-enter" style={{maxWidth:600,margin:"0 auto",display:"flex",flexDirection:"column",gap:20}}>
+            <div style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:32,background:dm?"#111827":"white",textAlign:"center"}}>
+              <div style={{width:80,height:80,borderRadius:"50%",background:"linear-gradient(135deg,#4f46e5,#a855f7)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,color:"white",fontWeight:900,margin:"0 auto 16px"}}>{user.name.charAt(0).toUpperCase()}</div>
+              <h2 style={{fontSize:24,fontWeight:800,margin:"0 0 4px"}}>{user.name}</h2>
+              <p style={{fontSize:13,color:ts,margin:"0 0 12px"}}>{user.email}</p>
+              <div style={{display:"flex",justifyContent:"center",gap:8,flexWrap:"wrap"}}>
+                {[user.role,user.school,...(user.isPremium?["👑 Premium"]:[])].map(tag=>(
+                  <span key={tag} style={{borderRadius:99,background:"#eef2ff",color:"#4338ca",padding:"4px 14px",fontSize:12,fontWeight:700}}>{tag}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+              {[{l:"XP",v:user.xp,e:"⚡"},{l:"Streak",v:`${user.streak}d`,e:"🔥"},{l:"Quizzes",v:user.quizzesCompleted,e:"🧠"},{l:"Bookmarks",v:bmarks.length,e:"📌"}].map(s=>(
+                <div key={s.l} style={{borderRadius:16,border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:20,textAlign:"center",background:dm?"#111827":"white"}}>
+                  <div style={{fontSize:20,marginBottom:4}}>{s.e}</div>
+                  <div style={{fontSize:22,fontWeight:800}}>{s.v}</div>
+                  <div style={{fontSize:12,color:ts}}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{borderRadius:"1.5rem",border:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:24,background:dm?"#111827":"white"}}>
+              <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>🏅 Badges</h3>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                {user.badges.map(b=><span key={b} style={{borderRadius:99,background:"#eef2ff",color:"#4338ca",padding:"8px 18px",fontSize:13,fontWeight:600}}>{b}</span>)}
+              </div>
+            </div>
+            {!user.isPremium&&(
+              <button onClick={()=>nav("pricing")} style={{width:"100%",padding:16,borderRadius:16,background:"linear-gradient(135deg,#f97316,#f59e0b)",color:"white",border:"none",cursor:"pointer",fontSize:14,fontWeight:700}}>
+                💳 Upgrade via Flutterwave or Paystack — From {CONFIG.CURRENCY_SYMBOL}35
+              </button>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer style={{position:"relative",zIndex:10,borderTop:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",padding:"48px 0",background:dm?"#030712":"white"}}>
+        <div style={{maxWidth:1280,margin:"0 auto",padding:"0 24px"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:32,marginBottom:40}}>
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+                <div style={{width:40,height:40,borderRadius:12,background:"linear-gradient(135deg,#4f46e5,#a855f7)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:900,fontSize:14}}>SS</div>
+                <span style={{fontWeight:700,fontSize:18}}>Study Smart</span>
+              </div>
+              <p style={{fontSize:13,lineHeight:1.6,color:ts}}>The ultimate academic platform for students in Ghana and beyond.</p>
+            </div>
+            <div>
+              <h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>Platform</h4>
+              <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:8}}>
+                {["library","quizzes","flashcards","forum","leaderboard"].map(l=>(
+                  <li key={l}><button onClick={()=>nav(l)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:ts,padding:0,textTransform:"capitalize"}}>{l}</button></li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>Resources</h4>
+              <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:8}}>
+                {["Slides","Lecture Notes","Past Questions","Textbooks","Lab Reports"].map(l=>(
+                  <li key={l} style={{fontSize:13,color:ts}}>{l}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>Payments</h4>
+              <ul style={{listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:8}}>
+                <li style={{fontSize:13,color:ts}}>🦋 Flutterwave · #{CONFIG.FLUTTERWAVE_MERCHANT_ID}</li>
+                <li style={{fontSize:13,color:ts}}>🔒 Paystack</li>
+                <li style={{fontSize:13,color:ts}}>📱 MTN MoMo</li>
+                <li style={{fontSize:13,color:ts}}>📱 Telecel · {CONFIG.OWNER_TELECEL}</li>
+                <li style={{fontSize:13,color:ts}}>💳 Visa / Mastercard</li>
+              </ul>
+            </div>
+          </div>
+          <div style={{borderTop:"1px solid",borderColor:dm?"#1f2937":"#e2e8f0",paddingTop:24,textAlign:"center",fontSize:13,color:ts}}>
+            © {new Date().getFullYear()} Study Smart. Secured by Flutterwave (#{CONFIG.FLUTTERWAVE_MERCHANT_ID}) & Paystack · 🇬🇭 Ghana Cedis
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
